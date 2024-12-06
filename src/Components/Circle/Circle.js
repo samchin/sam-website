@@ -13,6 +13,7 @@ function Circle() {
   const wsRef = useRef(null);
   const [center, setCenter] = useState({ x: 0, y: 0 });
   const mousePosRef = useRef(mousePos); // Ref to hold latest mousePos
+  const [dragging, setDragging] = useState(false);
 
   // Keep track of start time to send a duration in messages
   const [startTime] = useState(Date.now());
@@ -28,7 +29,10 @@ function Circle() {
 
   // Mouse event listener
   useEffect(() => {
+    const handleMouseDown = () => setDragging(true);
+    const handleMouseUp = () => setDragging(false);
     const handleMouseMove = (e) => {
+      if (!dragging) return;
       const dx = e.clientX - center.x;
       const dy = e.clientY - center.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -36,11 +40,15 @@ function Circle() {
       setMousePos({ x: dx, y: dy, inside });
     };
 
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousemove', handleMouseMove);
     return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [center]);
+  }, [center, dragging]);
 
   // Update trail
   useEffect(() => {
