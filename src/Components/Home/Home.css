@@ -1,0 +1,16 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.home-container {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  background: #000; /* Dark background for contrast */
+}
+
+.home-container canvas {
+  display: block;
+}
