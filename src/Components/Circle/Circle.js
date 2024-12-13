@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Circle.css';
 
-const NUM_ACTUATORS = 8;
+const NUM_ACTUATORS = 6;
 const CIRCLE_RADIUS = 200; // px
 const TRAIL_DURATION = 100; // ms
 const UPDATE_INTERVAL = 20; // ms
