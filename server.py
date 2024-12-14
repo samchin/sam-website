@@ -3,7 +3,13 @@ import websockets
 import json
 import sounddevice as sd
 import numpy as np
+import pandas as pd
+import flask
+from flask_cors import CORS
+import threading
 
+
+DEBUG = True    
 MAPPING = {
     0: 0,
     1: 1,
@@ -12,6 +18,9 @@ MAPPING = {
     4: 6,
     5: 2
 }
+
+df = pd.DataFrame({
+})
 
 # Global variable for amplitudes
 amplitude_array = [0, 0, 0, 0, 0, 0]
@@ -35,7 +44,6 @@ def connect():
     print(f"Selected audio output device with output channels: {sd.query_devices(device_id)['max_output_channels']}")
     print(sd.default.device)
 
-
 def audio_callback(outdata, frames, time, status):
     global phase, amplitude_array
 
@@ -57,29 +65,50 @@ def audio_callback(outdata, frames, time, status):
 
     outdata[:] = out
 
-
 async def handler(websocket):
-    global amplitude_array
+    global amplitude_array, df
     async for message in websocket:
         data = json.loads(message)
         print("Received data:", data)
         # Update the global amplitude array
         amplitude_array = data["amplitudes"]
+        timestamp = data["timestamp"]
+
+        # Update the global dataframe
+        new_data = pd.DataFrame([{
+            "timestamp": timestamp,
+            "amplitudes": amplitude_array
+        }])
+        df = pd.concat([df, new_data], ignore_index=True)
+        df = df[df["timestamp"] > timestamp - 10000]
 
 
 async def main():
+    #launch a new thread for the HTTP server
+    print("Starting Flask server on port 5000")
+    threading.Thread(target=lambda: app.run(port=5000)).start()
+
     async with websockets.serve(handler, "localhost", 8000):
         print("WebSocket server listening on ws://localhost:8000")
         await asyncio.Future()  # run forever
 
+app = flask.Flask(__name__)
+CORS(app)
 
-if __name__ == "__main__":
-    connect()
+@app.route('/data', methods=['GET'])
+def data():
+    global df
+    return df.to_json(orient='records')
 
-    # Start the output stream
-    with sd.OutputStream(samplerate=sample_rate,
-                         channels=sd.query_devices(sd.default.device[1])['max_output_channels'],
-                         callback=audio_callback,
-                         blocksize=1024):
-        # Run the websocket server and the stream at the same time
+
+if __name__ == "__main__": 
+    if not DEBUG:
+        connect()  
+        with sd.OutputStream(samplerate=sample_rate,
+                            channels=sd.query_devices(sd.default.device[1])['max_output_channels'],
+                            callback=audio_callback,
+                            blocksize=1024):
+            asyncio.run(main())
+    else:
+        print("Running in debug mode. No audio output will be generated.")
         asyncio.run(main())

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import './Experiment.css';
+
+const NUM_ACTUATORS = 6;
 
 const Experiment = () => {
   const [examinatorMode, setExaminatorMode] = useState(true);
@@ -14,6 +16,8 @@ const Experiment = () => {
   const [trialData, setTrialData] = useState([]); // {amplitude, correct: boolean} objects
   const [errorCount, setErrorCount] = useState(0);
   const [experimentStarted, setExperimentStarted] = useState(false);
+
+  const wsRef = useRef(null);
   
   // Handle start of experiment
   const handleStart = () => {
@@ -32,6 +36,25 @@ const Experiment = () => {
   // Simulate playing the sound (for now, just a console.log)
   const handlePlay = () => {
     console.log("Playing sound at amplitude:", currentAmplitude);
+
+    //chose randoma actuator
+    const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
+    //create an array of 6 values, all 0 except the actuator
+    const actuatorArray = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? 1 : 0);
+    const message = JSON.stringify({
+      actuatorArray,
+      timestamp: Date.now(),
+    });
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log("Sending to server:", message);
+      wsRef.current.send(message);
+    }else
+    {
+      console.log("Websocket not connected");
+    }
+
+
   };
 
   const handleResponse = (hasSignal) => {
@@ -63,6 +86,31 @@ const Experiment = () => {
         alert("Staircase ended. Errors accepted threshold reached.");
     }
   };
+
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8000'); 
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+    };
+
+    ws.onmessage = (message) => {
+      console.log('Received from server:', message.data);
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket closed');
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
 
   // Plot dimensions
   const plotWidth = 500;

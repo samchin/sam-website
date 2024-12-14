@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Circle.css';
+import ActuatorChart from './ActuatorChart';
 
 const NUM_ACTUATORS = 6;
 const CIRCLE_RADIUS = 200; // px
 const TRAIL_DURATION = 100; // ms
 const UPDATE_INTERVAL = 20; // ms
+const TIME_WINDOW = 10000; // 10 seconds in ms
 
 function Circle() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0, inside: false });
@@ -14,6 +16,11 @@ function Circle() {
   const [center, setCenter] = useState({ x: 0, y: 0 });
   const mousePosRef = useRef(mousePos); // Ref to hold latest mousePos
   const [dragging, setDragging] = useState(false);
+  const [dataActuators, setDataActuators] = useState([]);
+  const [numActuators, setNumActuators] = useState(0);
+  const [actuatorsDataArray, setActuatorsDataArray] = useState([]); 
+  const [sendData, setSendData] = useState(true); // Toggle state for sending data
+  
 
   // Keep track of start time to send a duration in messages
   const [startTime] = useState(Date.now());
@@ -26,6 +33,62 @@ function Circle() {
       y: rect.top + rect.height / 2,
     });
   }, []);
+
+  useEffect(() => { //connection to the HTTP server
+    // Fetch data periodically
+    const fetchData = () => {
+      fetch('http://localhost:5000/data')
+        .then((response) => response.json())
+        .then((fetchedData) => {
+          setDataActuators(fetchedData);
+        })
+        .catch((error) => console.error('Error fetching data:', error));
+    };
+
+    const intervalId = setInterval(fetchData, 200); // fetch every 200 ms for example
+    return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => { //data transformation
+    if (!dataActuators || dataActuators.length === 0) return;
+
+    // Determine number of actuators
+    const first = dataActuators[0];
+    if (first && first.amplitudes && first.amplitudes.length > 0) {
+      setNumActuators(first.amplitudes.length);
+    }
+
+    // Now transform data for each actuator
+    const now = Date.now();
+    const cutoff = now - TIME_WINDOW;
+
+    // We'll maintain arrays for each actuator
+    // Initialize arrays if needed
+    let newActuatorsData = [];
+    for (let i = 0; i < (first?.amplitudes.length || 0); i++) {
+      newActuatorsData[i] = [];
+    }
+
+    // Convert each fetched data point into separate data points for each actuator
+    // dataActuators: [{timestamp, amplitudes: [a0, a1, ...]}, ...]
+    dataActuators.forEach(d => {
+      const t = d.timestamp; 
+      if (t >= cutoff) {
+        d.amplitudes.forEach((amp, i) => {
+          const freq = amp;
+          const duty = amp;
+
+          newActuatorsData[i].push({
+            timestamp: t / 1000, // Chart code expects timestamp in seconds (assuming so from *1000 in code)
+            freq: freq,
+            duty: duty,
+          });
+        });
+      }
+    });
+
+    setActuatorsDataArray(newActuatorsData);
+  }, [dataActuators]);
 
   // Mouse event listener
   useEffect(() => {
@@ -96,11 +159,13 @@ function Circle() {
   // Set the interval once and use the ref to get updated mousePos
   useEffect(() => {
     const interval = setInterval(() => {
+      if (!sendData) return; // Check the toggle before sending data
+
       const { x, y, inside } = mousePosRef.current;
       const amplitudes = computeAmplitudes(x, y, inside);
       const message = JSON.stringify({
         amplitudes,
-        duration: Date.now() - startTime,
+        timestamp: Date.now(),
       });
 
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -111,7 +176,7 @@ function Circle() {
     return () => {
       clearInterval(interval);
     };
-  }, [startTime]); // Only depend on startTime so we don't recreate interval every mouse move
+  }, [startTime, sendData]); // Depend on sendData to update interval when toggle changes
 
   // Generate actuator points
   const actuatorPoints = [];
@@ -127,39 +192,62 @@ function Circle() {
 
   return (
     <div className="cirlceapp">
-      <div className="containercircle">
-        <svg
-          ref={circleRef}
-          width={CIRCLE_RADIUS * 2}
-          height={CIRCLE_RADIUS * 2}
-          style={{ overflow: 'visible' }}
-        >
-          <circle
-            cx={CIRCLE_RADIUS}
-            cy={CIRCLE_RADIUS}
-            r={CIRCLE_RADIUS}
-            className="main-circle"
-          />
-          {actuatorPoints.map((p, i) => (
+      <div className="circleheader">
+        <div className="containercircle">
+          {/* Toggle switch for sending data */}
+          <svg
+            ref={circleRef}
+            width={CIRCLE_RADIUS * 2}
+            height={CIRCLE_RADIUS * 2}
+            style={{ overflow: 'visible' }}
+          >
             <circle
-              key={i}
-              cx={CIRCLE_RADIUS + p.x}
-              cy={CIRCLE_RADIUS + p.y}
-              r={8}
-              className="actuator-point"
+              cx={CIRCLE_RADIUS}
+              cy={CIRCLE_RADIUS}
+              r={CIRCLE_RADIUS}
+              className="main-circle"
             />
-          ))}
-          {trailPath && <path d={trailPath} className="mouse-trail" />}
-          {mousePos.inside && (
-            <circle
-              cx={CIRCLE_RADIUS + mousePos.x}
-              cy={CIRCLE_RADIUS + mousePos.y}
-              r={4}
-              className="current-position"
-            />
-          )}
-        </svg>
+            {actuatorPoints.map((p, i) => (
+              <circle
+                key={i}
+                cx={CIRCLE_RADIUS + p.x}
+                cy={CIRCLE_RADIUS + p.y}
+                r={8}
+                className="actuator-point"
+              />
+            ))}
+            {trailPath && <path d={trailPath} className="mouse-trail" />}
+            {mousePos.inside && (
+              <circle
+                cx={CIRCLE_RADIUS + mousePos.x}
+                cy={CIRCLE_RADIUS + mousePos.y}
+                r={4}
+                className="current-position"
+              />
+            )}
+          </svg>
+        </div>
+        <div className="toggle-container">
+          <label className="switch">
+              <input type="checkbox" checked={sendData} onChange={() => setSendData(!sendData)} />
+              <span className="slider round"></span>
+            </label>
+            <p>Send Data</p>
+        </div>
       </div>
+      <div className='actuator-charts'>
+        <h1>Actuator Charts</h1>
+        {/* Dynamically render one chart per actuator */}
+        {actuatorsDataArray.map((actData, index) => (
+          <div className='actuator-chart-container'>
+            <ActuatorChart 
+              key={index} 
+              actuatorAddr={index} 
+              actuatorData={actData} 
+            />
+          </div>
+        ))}
+    </div>
     </div>
   );
 }

@@ -1,0 +1,27 @@
+#Actuatorsd
+Initial Amplitude
+Step resolution
+
+Initial freq
+Staircase error *reversal
+Inital actuaotrs selected for experiment
+
+
+
+Graph time
+
+
+MAPPING = {
+    0: 0,
+    1: 1,
+    2: 3,
+    3: 7,
+    4: 6,
+    5: 2
+}
+
+
+DEBUG 
+
+
+save file destination 
