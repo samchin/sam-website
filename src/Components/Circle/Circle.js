@@ -8,6 +8,7 @@ const TRAIL_DURATION = 100; // ms
 const UPDATE_INTERVAL = parseInt(process.env.REACT_APP_SENDING_RATE); // ms
 const REFRESH_RATE = parseInt(process.env.REACT_APP_REFRESH_RATE); // ms
 const TIME_WINDOW = parseInt(process.env.REACT_APP_WINDOW_SAVING); // 10 seconds in ms
+const SERVER_URL = process.env.REACT_APP_SERVER_URL;
 
 
 console.log('NUM_ACTUATORS:', NUM_ACTUATORS);
@@ -41,7 +42,7 @@ function Circle() {
   useEffect(() => { //connection to the HTTP server
     // Fetch data periodically
     const fetchData = () => {
-      fetch('http://localhost:5000/data')
+      fetch(SERVER_URL+'/data')
         .then((response) => response.json())
         .then((fetchedData) => {
           setDataActuators(fetchedData);
