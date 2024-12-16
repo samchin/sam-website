@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Circle.css';
 import ActuatorChart from './ActuatorChart';
-
-const NUM_ACTUATORS = 6;
+//convert to integer
+const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
 const CIRCLE_RADIUS = 200; // px
 const TRAIL_DURATION = 100; // ms
-const UPDATE_INTERVAL = 20; // ms
-const TIME_WINDOW = 10000; // 10 seconds in ms
+const UPDATE_INTERVAL = parseInt(process.env.REACT_APP_SENDING_RATE); // ms
+const REFRESH_RATE = parseInt(process.env.REACT_APP_REFRESH_RATE); // ms
+const TIME_WINDOW = parseInt(process.env.REACT_APP_WINDOW_SAVING); // 10 seconds in ms
+
+
+console.log('NUM_ACTUATORS:', NUM_ACTUATORS);
 
 function Circle() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0, inside: false });
@@ -45,7 +49,7 @@ function Circle() {
         .catch((error) => console.error('Error fetching data:', error));
     };
 
-    const intervalId = setInterval(fetchData, 200); // fetch every 200 ms for example
+    const intervalId = setInterval(fetchData, REFRESH_RATE); 
     return () => clearInterval(intervalId);
   }, []);
 
@@ -69,8 +73,6 @@ function Circle() {
       newActuatorsData[i] = [];
     }
 
-    // Convert each fetched data point into separate data points for each actuator
-    // dataActuators: [{timestamp, amplitudes: [a0, a1, ...]}, ...]
     dataActuators.forEach(d => {
       const t = d.timestamp; 
       if (t >= cutoff) {

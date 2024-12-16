@@ -7,28 +7,30 @@ import pandas as pd
 import flask
 from flask_cors import CORS
 import threading
+from dotenv import load_dotenv
+import os
+
+load_dotenv("./.env")
 
 
-DEBUG = True    
-MAPPING = {
-    0: 0,
-    1: 1,
-    2: 3,
-    3: 7,
-    4: 6,
-    5: 2
-}
+# Retrieve environment variables
+DEBUG = os.getenv("REACT_APP_DEBUG", "False").lower() == "true"  # Convert to boolean
+FREQ = int(os.getenv("REACT_APP_FREQ", 200))
+SAMPLE_RATE = int(os.getenv("REACT_APP_SAMPLE_RATE", 2000))
+NUMBER_ACTUATORS = int(os.getenv("REACT_APP_NUMBER_ACTUATOR", 0))
+
+WINDOW_SIZE = int(os.getenv("REACT_APP_WINDOW_SAVING", 10000))
+
+# Parse MAPPING as a dictionary
+mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
+MAPPING = {i: int(v) for i, v in enumerate(mapping_str.split(","))}
 
 df = pd.DataFrame({
 })
-
 # Global variable for amplitudes
-amplitude_array = [0, 0, 0, 0, 0, 0]
-
-frequency = 170      # Frequency of the sine wave in Hz
-sample_rate = 48000   # Sample rate in Hz
+amplitude_array = []
 phase = 0.0           # Phase accumulator for the sine wave
-phase_increment = (2 * np.pi * frequency) / sample_rate
+phase_increment = (2 * np.pi * FREQ) / SAMPLE_RATE
 
 def connect():
     # Attempt to find a device with at least 8 output channels
@@ -67,6 +69,8 @@ def audio_callback(outdata, frames, time, status):
 
 async def handler(websocket):
     global amplitude_array, df
+
+    amplitude_array = [0] * NUMBER_ACTUATORS
     async for message in websocket:
         data = json.loads(message)
         print("Received data:", data)
@@ -80,7 +84,7 @@ async def handler(websocket):
             "amplitudes": amplitude_array
         }])
         df = pd.concat([df, new_data], ignore_index=True)
-        df = df[df["timestamp"] > timestamp - 10000]
+        df = df[df["timestamp"] > timestamp - WINDOW_SIZE]
 
 
 async def main():
@@ -102,9 +106,13 @@ def data():
 
 
 if __name__ == "__main__": 
+    if len(MAPPING) != NUMBER_ACTUATORS:
+        raise ValueError("Number of actuators in MAPPING does not match NUMBER_ACTUATORS")
+
+
     if not DEBUG:
         connect()  
-        with sd.OutputStream(samplerate=sample_rate,
+        with sd.OutputStream(samplerate=SAMPLE_RATE,
                             channels=sd.query_devices(sd.default.device[1])['max_output_channels'],
                             callback=audio_callback,
                             blocksize=1024):
