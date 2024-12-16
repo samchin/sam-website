@@ -22,9 +22,9 @@ function Circle() {
   const [dragging, setDragging] = useState(false);
   const [dataActuators, setDataActuators] = useState([]);
   const [numActuators, setNumActuators] = useState(0);
-  const [actuatorsDataArray, setActuatorsDataArray] = useState([]); 
+  const [actuatorsDataArray, setActuatorsDataArray] = useState([]);
   const [sendData, setSendData] = useState(true); // Toggle state for sending data
-  
+
 
   // Keep track of start time to send a duration in messages
   const [startTime] = useState(Date.now());
@@ -49,7 +49,7 @@ function Circle() {
         .catch((error) => console.error('Error fetching data:', error));
     };
 
-    const intervalId = setInterval(fetchData, REFRESH_RATE); 
+    const intervalId = setInterval(fetchData, REFRESH_RATE);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -74,7 +74,7 @@ function Circle() {
     }
 
     dataActuators.forEach(d => {
-      const t = d.timestamp; 
+      const t = d.timestamp;
       if (t >= cutoff) {
         d.amplitudes.forEach((amp, i) => {
           const freq = amp;
@@ -98,10 +98,19 @@ function Circle() {
     const handleMouseUp = () => setDragging(false);
     const handleMouseMove = (e) => {
       if (!dragging) return;
-      const dx = e.clientX - center.x;
-      const dy = e.clientY - center.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const inside = dist <= CIRCLE_RADIUS;
+      let dx = e.clientX - center.x;
+      let dy = e.clientY - center.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      let inside = dist <= CIRCLE_RADIUS;
+      if (!inside)
+      {
+        //make it bounded to the circle
+        const angle = Math.atan2(dy, dx);
+        dx = CIRCLE_RADIUS * Math.cos(angle);
+        dy = CIRCLE_RADIUS * Math.sin(angle);
+        dist = CIRCLE_RADIUS;
+        inside = true;
+      }
       setMousePos({ x: dx, y: dy, inside });
     };
 
@@ -132,8 +141,7 @@ function Circle() {
     mousePosRef.current = mousePos;
   }, [mousePos]);
 
-  // Set up WebSocket connection
-  useEffect(() => {
+  useEffect(() => {   // Set up WebSocket connection
     const ws = new WebSocket('ws://localhost:8000'); // Change URL as needed
     wsRef.current = ws;
 
@@ -231,10 +239,10 @@ function Circle() {
         </div>
         <div className="toggle-container">
           <label className="switch">
-              <input type="checkbox" checked={sendData} onChange={() => setSendData(!sendData)} />
-              <span className="slider round"></span>
-            </label>
-            <p>Send Data</p>
+            <input type="checkbox" checked={sendData} onChange={() => setSendData(!sendData)} />
+            <span className="slider round"></span>
+          </label>
+          <p>Send Data</p>
         </div>
       </div>
       <div className='actuator-charts'>
@@ -242,14 +250,14 @@ function Circle() {
         {/* Dynamically render one chart per actuator */}
         {actuatorsDataArray.map((actData, index) => (
           <div className='actuator-chart-container'>
-            <ActuatorChart 
-              key={index} 
-              actuatorAddr={index} 
-              actuatorData={actData} 
+            <ActuatorChart
+              key={index}
+              actuatorAddr={index}
+              actuatorData={actData}
             />
           </div>
         ))}
-    </div>
+      </div>
     </div>
   );
 }
