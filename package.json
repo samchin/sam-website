@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@mui/x-charts": "^7.23.1",
+    "@react-spring/web": "^9.5.5",
     "chart.js": "^4.4.7",
     "chartjs-adapter-date-fns": "^3.0.0",
     "cra-template": "1.2.0",
@@ -14,6 +15,7 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.2",
     "react-scripts": "5.0.1",
+    "react-tinder-card": "^1.6.4",
     "recharts": "^2.14.1",
     "web-vitals": "^4.2.4"
   },

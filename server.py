@@ -14,7 +14,7 @@ load_dotenv("./.env")
 
 
 # Retrieve environment variables
-DEBUG = os.getenv("REACT_APP_DEBUG", "False").lower() == "true"  # Convert to boolean
+DEBUG = False
 FREQ = int(os.getenv("REACT_APP_FREQ", 200))
 SAMPLE_RATE = int(os.getenv("REACT_APP_SAMPLE_RATE", 2000))
 NUMBER_ACTUATORS = int(os.getenv("REACT_APP_NUMBER_ACTUATOR", 0))
@@ -112,6 +112,7 @@ if __name__ == "__main__":
 
     if not DEBUG:
         connect()  
+        print("Running in audio output mode.")
         with sd.OutputStream(samplerate=SAMPLE_RATE,
                             channels=sd.query_devices(sd.default.device[1])['max_output_channels'],
                             callback=audio_callback,
