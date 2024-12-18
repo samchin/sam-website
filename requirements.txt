@@ -1,0 +1,8 @@
+asyncio
+websockets
+sounddevice
+numpy 
+pandas
+flask
+flask_cors
+python-dotenv
