@@ -62,6 +62,8 @@ const Experiment = () => {
       console.log("Websocket not connected");
     }
 
+    wsRef.current.send(message);
+
 
   };
 
