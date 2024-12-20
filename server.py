@@ -1,7 +1,6 @@
 import asyncio
 import websockets
 import json
-import sounddevice as sd
 import numpy as np
 import pandas as pd
 import flask
@@ -32,19 +31,23 @@ amplitude_array = []
 phase = 0.0           # Phase accumulator for the sine wave
 phase_increment = (2 * np.pi * FREQ) / SAMPLE_RATE
 
-def connect():
-    # Attempt to find a device with at least 8 output channels
-    device_id = None
-    for i, device in enumerate(sd.query_devices()):
-        if device['max_output_channels'] >= 8:
-            device_id = i
-            break
-    if device_id is None:
-        raise RuntimeError("No suitable output device found with at least 8 channels.")
+if DEBUG:
+    print("DEBUG MODE")
+    import sounddevice as sd
 
-    sd.default.device = (None, device_id)
-    print(f"Selected audio output device with output channels: {sd.query_devices(device_id)['max_output_channels']}")
-    print(sd.default.device)
+    def connect():
+        # Attempt to find a device with at least 8 output channels
+        device_id = None
+        for i, device in enumerate(sd.query_devices()):
+            if device['max_output_channels'] >= 8:
+                device_id = i
+                break
+        if device_id is None:
+            raise RuntimeError("No suitable output device found with at least 8 channels.")
+
+        sd.default.device = (None, device_id)
+        print(f"Selected audio output device with output channels: {sd.query_devices(device_id)['max_output_channels']}")
+        print(sd.default.device)
 
 def audio_callback(outdata, frames, time, status):
     global phase, amplitude_array
@@ -68,6 +71,7 @@ def audio_callback(outdata, frames, time, status):
     outdata[:] = out
 
 async def handler(websocket):
+    print("Client connected.")
     global amplitude_array, df
 
     amplitude_array = [0] * NUMBER_ACTUATORS
@@ -90,7 +94,7 @@ async def handler(websocket):
 async def main():
     #launch a new thread for the HTTP server
     print("Starting Flask server on port 5000")
-    threading.Thread(target=lambda: app.run(port=5000)).start()
+    #threading.Thread(target=lambda: app.run(port=5000)).start()
 
     async with websockets.serve(handler, "localhost", 8000):
         print("WebSocket server listening on ws://localhost:8000")
@@ -109,8 +113,8 @@ if __name__ == "__main__":
     if len(MAPPING) != NUMBER_ACTUATORS:
         raise ValueError("Number of actuators in MAPPING does not match NUMBER_ACTUATORS")
 
-
-    if not DEBUG:
+    if not True:
+        print("Running in audio output mode.")
         connect()  
         print("Running in audio output mode.")
         with sd.OutputStream(samplerate=SAMPLE_RATE,
