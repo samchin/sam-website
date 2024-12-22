@@ -10,6 +10,7 @@ const ID_ACTUATOR_B = 1;
 const STEP_SIZE = 0.1;
 const REVERSAL = 4;
 const DIFFERENCE = 0.1;
+const NUM_ACTUATORS = 6;
 
 function Relative() {
   // State to keep track of unique IDs for new cards
@@ -23,6 +24,8 @@ function Relative() {
 
   const [errorCount, setErrorCount] = useState(0);
   const [bestAmplitude, setBestAmplitude] = useState(1);
+
+  const wsRef = useRef(null);
 
 
   // Reference to the container to calculate canvas size
@@ -52,6 +55,53 @@ function Relative() {
 
     return car;
   };
+
+  const sendInfo = () => {
+    const timestamp = new Date().toISOString();
+
+    //make an array of length NUM_ACTUATORS with 0
+    const amplitudes = Array(NUM_ACTUATORS).fill(0);
+    //at the index of the actuator, set the amplitude
+    amplitudes[ID_ACTUATOR_A] = amplitude;
+    amplitudes[ID_ACTUATOR_B] = amplitude - DIFFERENCE;
+
+    const message = JSON.stringify({
+      amplitudes,
+      timestamp: Date.now(),
+    });
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(message);
+    } else {
+      console.log("Websocket not connected");
+    }
+  };
+
+    useEffect(() => {
+      const ws = new WebSocket('ws://localhost:8000');
+      wsRef.current = ws;
+  
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+      };
+  
+      ws.onmessage = (message) => {
+        console.log('Received from server:', message.data);
+      };
+  
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+  
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+      };
+  
+      return () => {
+        ws.close();
+      };
+    }, []);
+  
 
   // Update childRefs whenever data changes
   useEffect(() => {
@@ -131,6 +181,8 @@ function Relative() {
     const actuatorA = array.isActuatorA ? amplitude : amplitude - DIFFERENCE;
     const actuatorB = array.isActuatorA ? amplitude - DIFFERENCE : amplitude;
     console.log('Amplitude A: ' + actuatorA, 'Amplitude B: ' + actuatorB);
+
+    sendInfo();
   
   }
 

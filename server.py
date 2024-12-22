@@ -94,7 +94,7 @@ async def handler(websocket):
 async def main():
     #launch a new thread for the HTTP server
     print("Starting Flask server on port 5000")
-    #threading.Thread(target=lambda: app.run(port=5000)).start()
+    threading.Thread(target=lambda: app.run(port=5000)).start()
 
     async with websockets.serve(handler, "localhost", 8000):
         print("WebSocket server listening on ws://localhost:8000")

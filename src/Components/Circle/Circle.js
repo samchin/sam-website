@@ -143,7 +143,7 @@ function Circle() {
   }, [mousePos]);
 
   useEffect(() => {   // Set up WebSocket connection
-    const ws = new WebSocket('ws://127.0.0.1:8000'); // Change URL as needed
+    const ws = new WebSocket('ws://localhost:8000'); // Change URL as needed
     wsRef.current = ws;
 
     ws.onopen = () => {

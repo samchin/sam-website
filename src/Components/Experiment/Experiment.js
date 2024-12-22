@@ -49,6 +49,7 @@ const Experiment = () => {
     // choose random actuator
     const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
     // create an array of 6 values, all 0 except the chosen actuator
+    console.log("Actuator:", NUM_ACTUATORS);
     const amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
     const message = JSON.stringify({
       amplitudes,
@@ -61,10 +62,6 @@ const Experiment = () => {
     } else {
       console.log("Websocket not connected");
     }
-
-    wsRef.current.send(message);
-
-
   };
 
   const handleResponse = (hasSignal) => {
