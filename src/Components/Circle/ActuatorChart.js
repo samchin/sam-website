@@ -50,7 +50,7 @@ function ActuatorChart({ actuatorAddr, actuatorData }) {
         backgroundColor: 'rgba(0, 128, 0, 0.6 )',
         yAxisID: 'y2',
         borderWidth: 0,
-        pointRadius: 5
+        pointRadius: 2
       }
     ]
   }), [labels, freqData, dutyData, actuatorAddr]);

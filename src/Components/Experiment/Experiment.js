@@ -5,6 +5,7 @@ const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
 const INITIAL_AMPLITUDE = parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE);
 const INITIAL_STEP_SIZE = parseFloat(process.env.REACT_APP_STEP_RESOLUTION);
 const INITIAL_ERRORS_ACCEPTED = parseInt(process.env.REACT_APP_REVERSAL);
+const PID = parseInt(process.env.REACT_APP_PID);
 
 const Experiment = () => {
   const [examinatorMode, setExaminatorMode] = useState(true);
@@ -178,7 +179,8 @@ const Experiment = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "experiment_data.csv";
+    a.download = "absolute_threshold_data_" + String(PID) + ".csv";
+    console.log(String(PID))
     a.click();
     URL.revokeObjectURL(url);
   };
