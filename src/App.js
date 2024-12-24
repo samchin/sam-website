@@ -4,6 +4,7 @@ import Home from './Components/Home/Home';
 import Circle from './Components/Circle/Circle';
 import Experiment from './Components/Experiment/Experiment';
 import Relative from './Components/Relative/Relative';
+import Localization from './Components/Localization/Localization';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/circle" element={<Circle />} />
         <Route path="/experiment" element={<Experiment />} />
         <Route path="/quizz" element={<Relative />} />
+        <Route path="/localization" element={<Localization />} />
       </Routes>
     </Router>
   );

@@ -1,0 +1,202 @@
+.container {
+    font-family: sans-serif;
+    position: relative;
+    padding: 20px;
+    background: #f0f0f0;
+    height: 100vh;
+}
+
+.examinatorToggle {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+    padding: 10px;
+    background: #444;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.examinatorPanel {
+    position: absolute;
+    top: 100px;
+    right: 50px;
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.inputGroup {
+    display: flex;
+    margin: 10px 0;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.startButton {
+    margin-top: 20px;
+    padding: 10px;
+    background: #008CBA;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.experimentArea {
+    margin-top: 100px;
+    padding: 20px;
+    background: #eee;
+    border-radius: 5px;
+}
+
+.controlRow {
+    display: flex;
+    gap: 20px; /* Increased gap for more spacing between buttons */
+    margin-bottom: 20px;
+}
+
+.playButton {
+    padding: 10px 20px;
+    font-size: 16px;
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.responseButton {
+    padding: 10px 20px;
+    font-size: 16px;
+    background: #2196F3;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+
+.dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.playButton {
+    display: inline-block;
+    padding: 1em 2em;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #a7b6a7 0%, #5b615b 100%);
+    border: none;
+    border-radius: 0.5em;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    width: 200px;
+  }
+  
+
+.responseButton {
+    display: inline-block;
+    padding: 1em 2em;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #4ab74a 0%, #62da5a 100%);
+    border: none;
+    border-radius: 0.5em;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    width: 200px;
+}
+
+  
+.playButton:hover, .responseButton:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
+}
+
+.responseButton:last-of-type {
+    background: linear-gradient(135deg, #b12525 0%, #bdbdbd 100%);
+    color: #fff;
+}
+
+.responseButton:last-of-type:hover {
+    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
+    transform: scale(1.05);
+}
+
+
+.controlRow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.playButton {
+    margin-bottom: 20px; /* Add space between Play and the other buttons */
+}
+
+.circle-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 50px auto;
+    border-radius: 50%;
+    /* Optional: Add background to visualize the container */
+    background-color: #f3f3f3;
+  }
+  
+  .circle-button {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .circle-button:nth-child(1) {
+    top: 34px; /* 100 + 80 * sin(45 * PI / 180) */
+    left: 156px; /* 100 + 80 * cos(45 * PI / 180) */
+  }
+  
+  .circle-button:nth-child(2) {
+    top: 20px; /* 100 + 80 * sin(90 * PI / 180) */
+    left: 100px; /* 100 + 80 * cos(90 * PI / 180) */
+  }
+  
+  .circle-button:nth-child(3) {
+    top: 34px; /* 100 + 80 * sin(135 * PI / 180) */
+    left: 44px; /* 100 + 80 * cos(135 * PI / 180) */
+  }
+  
+  .circle-button:nth-child(4) {
+    top: 100px; /* 100 + 80 * sin(180 * PI / 180) */
+    left: 20px; /* 100 + 80 * cos(180 * PI / 180) */
+  }
+  
+  .circle-button:nth-child(5) {
+    top: 166px; /* 100 + 80 * sin(225 * PI / 180) */
+    left: 44px; /* 100 + 80 * cos(225 * PI / 180) */
+  }
+  
+  .circle-button:nth-child(6) {
+    top: 180px; /* 100 + 80 * sin(270 * PI / 180) */
+    left: 100px; /* 100 + 80 * cos(270 * PI / 180) */
+  }
