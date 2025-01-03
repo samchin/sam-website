@@ -21,7 +21,11 @@ NUMBER_ACTUATORS = int(os.getenv("REACT_APP_NUMBER_ACTUATOR", 0))
 WINDOW_SIZE = int(os.getenv("REACT_APP_WINDOW_SAVING", 10000))
 
 # Parse MAPPING as a dictionary
-mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
+# # mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
+# # mapping_str = ("1,2,3,4.5,6")
+# # mapping_str = ("2,3,4,5,6,7")
+mapping_str = ("2,3,5,7,6,4") # OVER THE EAR
+# mapping_str =("2,3,5,4,6,7") 
 MAPPING = {i: int(v) for i, v in enumerate(mapping_str.split(","))}
 
 df = pd.DataFrame({
@@ -31,8 +35,7 @@ amplitude_array = []
 phase = 0.0           # Phase accumulator for the sine wave
 phase_increment = (2 * np.pi * FREQ) / SAMPLE_RATE
 
-if DEBUG:
-    print("DEBUG MODE")
+if not DEBUG:
     import sounddevice as sd
 
     def connect():
@@ -113,8 +116,7 @@ if __name__ == "__main__":
     if len(MAPPING) != NUMBER_ACTUATORS:
         raise ValueError("Number of actuators in MAPPING does not match NUMBER_ACTUATORS")
 
-    if not True:
-        print("Running in audio output mode.")
+    if not DEBUG:
         connect()  
         print("Running in audio output mode.")
         with sd.OutputStream(samplerate=SAMPLE_RATE,
