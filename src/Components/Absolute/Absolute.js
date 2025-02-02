@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import './Experiment.css';
+import './Absolute.css';
 
 const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
 const INITIAL_AMPLITUDE = parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE);
@@ -51,18 +51,51 @@ const Experiment = () => {
     const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
     // create an array of 6 values, all 0 except the chosen actuator
     console.log("Actuator:", NUM_ACTUATORS);
-    const amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
+    let amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
     const message = JSON.stringify({
       amplitudes,
       timestamp: Date.now(),
     });
 
+
+    
+    // console.log(off_amplitudes)
+    // console.log(amplitudes)
+    // const nu_message = JSON.stringify({
+    //   amplitudes,
+    //   timestamp: Date.now(),
+    // });
+
+    // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    //   wsRef.current.send(message);
+    //   setHasBeenPlayed(true);
+    // } else {
+    //   console.log("Websocket not connected");
+    // }
+
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Send first message
+      const message = JSON.stringify({
+          amplitudes,
+          timestamp: Date.now(),
+      });
       wsRef.current.send(message);
       setHasBeenPlayed(true);
-    } else {
+
+      amplitudes = Array(NUM_ACTUATORS).fill(0)
+  
+      // Wait 1 second then send second message
+      setTimeout(() => {
+          const nu_message = JSON.stringify({
+              amplitudes,
+              timestamp: Date.now(),
+          });
+          wsRef.current.send(nu_message);
+      }, 1000);
+  } else {
       console.log("Websocket not connected");
-    }
+  }
+
   };
 
   const handleResponse = (hasSignal) => {
@@ -89,6 +122,7 @@ const Experiment = () => {
       setCurrentAmplitude(prev => prev + (stepSize / 2));
       setErrorCount(prev => prev + 1);
     }
+
 
     // Check if error threshold reached
     if (errorCount + (correct ? 0 : 1) >= errorsAccepted) {
