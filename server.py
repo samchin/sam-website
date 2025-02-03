@@ -56,45 +56,61 @@ if not DEBUG:
         print(sd.default.device)
         
 
+import numpy as np
+
 def audio_callback(outdata, frames, time, status):
-    global phase, amplitude_array
-
-    if status:
-            print("Stream status:", status)
-
-    outdata[:] = np.zeros_like(outdata)
-
-
-    while len(amplitude_array) > 0 and frames > 0: 
-
-        duration = amplitude_array[0][0]
-        this_frames = min(duration, frames)
-        # this_frames = duration
-        # this_frames = frames
-
-        # Create a time index for this block
-        t = (np.arange(this_frames) + phase) * phase_increment
-
-        # Update phase for the next callback
-        phase += this_frames
-
-        # Generate the sine wave and scale by amplitude for each channel
-        sine_wave = np.sin(t)
-        channel_data = amplitude_array[0][1:]
-        for i in range(len(channel_data)):
-            outdata[:this_frames, MAPPING[i]] = sine_wave * channel_data[i]
-            # outdata[:this_frames, MAPPING[i]] = sine_wave * 0.5
-
-        outdata = outdata[this_frames:]
-
-        frames -= this_frames 
-        amplitude_array[0][0] -= this_frames
-
-        if amplitude_array[0][0] == 0: 
-            # print("POPPING!")
-            amplitude_array.pop()
-
+    """
+    Audio callback function for sounddevice to generate sine waves with varying amplitudes per channel.
     
+    Args:
+        outdata (numpy.ndarray): Output buffer to fill with audio data
+        frames (int): Number of frames to generate
+        time (CData): Time information (from sounddevice)
+        status (CallbackFlags): Status flags
+        
+    Global variables used:
+        phase (int): Current phase of the sine wave
+        amplitude_array (list): List of [duration, amp_ch1, amp_ch2, ...] arrays
+        MAPPING (list): Channel mapping for output
+    """
+    global phase, amplitude_array
+    
+    if status:
+        print("Stream status:", status)
+    
+    # Initialize output buffer with zeros
+    outdata.fill(0)
+    
+    # Keep track of how many frames we've processed
+    frames_processed = 0
+    
+    while len(amplitude_array) > 0 and frames_processed < frames:
+        # Get current amplitude array data
+        duration = amplitude_array[0][0]
+        remaining_frames = frames - frames_processed
+        this_frames = min(duration, remaining_frames)
+        
+        # Generate time indices for this block
+        t = (np.arange(this_frames) + phase) * phase_increment
+        phase += this_frames
+        
+        # Generate base sine wave
+        sine_wave = np.sin(t)
+        
+        # Apply amplitudes to each channel
+        channel_data = amplitude_array[0][1:]
+        for i, amplitude in enumerate(channel_data):
+            if i < len(MAPPING):
+                outdata[frames_processed:frames_processed + this_frames, MAPPING[i]] = sine_wave * amplitude
+        
+        # Update counters and check if we're done with current amplitude array
+        frames_processed += this_frames
+        amplitude_array[0][0] -= this_frames
+        
+        if amplitude_array[0][0] <= 0:
+            amplitude_array.pop(0)
+            
+    return
 
 
 async def handler(websocket):
