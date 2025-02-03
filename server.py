@@ -8,10 +8,12 @@ from flask_cors import CORS
 import threading
 from dotenv import load_dotenv
 import os
+import logging
 
 load_dotenv("./.env")
 
-
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 # Retrieve environment variables
 DEBUG = False
 FREQ = int(os.getenv("REACT_APP_FREQ", 200))
@@ -53,43 +55,73 @@ if not DEBUG:
         print(sd.default.device)
 
 def audio_callback(outdata, frames, time, status):
+    print("HELLOOOOOOO")
     global phase, amplitude_array
 
+    return
     if status:
-        print("Stream status:", status)
-
-    # Create a time index for this block
-    t = (np.arange(frames) + phase) * phase_increment
-    # Update phase for the next callback
-    phase += frames
-
+            print("Stream status:", status)
+            
+            
     # Create a multi-channel buffer initialized to zeros
-    out = np.zeros((frames, sd.query_devices(sd.default.device[1])['max_output_channels']), dtype=np.float32)
+    # out = np.zeros((frames, sd.query_devices(sd.default.device[1])['max_output_channels']), dtype=np.float32)
 
-    # Generate the sine wave and scale by amplitude for each channel
-    sine_wave = np.sin(t)
-    for i in range(len(amplitude_array)):
-        out[:, MAPPING[i]] = sine_wave * amplitude_array[i]
+    outdata[:] = np.zeros_like(outdata)
 
-    outdata[:] = out
+    print(len(amplitude_array))
+
+    while len(amplitude_array) > 0 and frames > 0: 
+
+        duration = amplitude_array[0][0]
+        this_frames = min(duration, frames)
+
+        # Create a time index for this block
+        t = (np.arange(this_frames) + phase) * phase_increment
+
+        # Update phase for the next callback
+        phase += this_frames
+
+        # Generate the sine wave and scale by amplitude for each channel
+        sine_wave = np.sin(t)
+        channel_data = amplitude_array[0][1:]
+        for i in range(len(channel_data)):
+            outdata[:this_frames, MAPPING[i]] = sine_wave * channel_data[i]
+
+        outdata = outdata[this_frames:]
+
+        frames -= this_frames 
+        amplitude_array[0][0] -= this_frames
+
+        if amplitude_array[0][0] == 0: 
+            print("POPPING!")
+            amplitude_array.pop()
+
 
 async def handler(websocket):
     print("Client connected.")
     global amplitude_array, df
 
-    amplitude_array = [0] * NUMBER_ACTUATORS
+    # amplitude_array = [0] * NUMBER_ACTUATORS 
+    amplitude_array = []
+    duration_array = [0] * NUMBER_ACTUATORS
     async for message in websocket:
         data = json.loads(message)
         print("Received data:", data)
         # Update the global amplitude array
-        amplitude_array = data["amplitudes"]
+        duration = data["duration"]*SAMPLE_RATE/1000
+        duration = int(duration)
+        amplitude_array.append([duration] + data["amplitudes"])
+        # print(duration)
         timestamp = data["timestamp"]
+        # duration_array = data["duration"]
 
         # Update the global dataframe
         new_data = pd.DataFrame([{
             "timestamp": timestamp,
-            "amplitudes": amplitude_array
+            "amplitudes": data["amplitudes"],
+            "duration": data["duration"],
         }])
+
         df = pd.concat([df, new_data], ignore_index=True)
         df = df[df["timestamp"] > timestamp - WINDOW_SIZE]
 
@@ -121,8 +153,7 @@ if __name__ == "__main__":
         print("Running in audio output mode.")
         with sd.OutputStream(samplerate=SAMPLE_RATE,
                             channels=sd.query_devices(sd.default.device[1])['max_output_channels'],
-                            callback=audio_callback,
-                            blocksize=1024):
+                             blocksize=1024):
             asyncio.run(main())
     else:
         print("Running in debug mode. No audio output will be generated.")

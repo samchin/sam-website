@@ -177,6 +177,7 @@ function Circle() {
       const message = JSON.stringify({
         amplitudes,
         timestamp: Date.now(),
+        duration: UPDATE_INTERVAL 
       });
 
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
