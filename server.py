@@ -45,6 +45,7 @@ if not DEBUG:
         device_id = None
         for i, device in enumerate(sd.query_devices()):
             if device['max_output_channels'] >= 8:
+            # if device['max_output_channels'] == 2: 
                 device_id = i
                 break
         if device_id is None:
@@ -53,27 +54,23 @@ if not DEBUG:
         sd.default.device = (None, device_id)
         print(f"Selected audio output device with output channels: {sd.query_devices(device_id)['max_output_channels']}")
         print(sd.default.device)
+        
 
 def audio_callback(outdata, frames, time, status):
-    print("HELLOOOOOOO")
     global phase, amplitude_array
 
-    return
     if status:
             print("Stream status:", status)
-            
-            
-    # Create a multi-channel buffer initialized to zeros
-    # out = np.zeros((frames, sd.query_devices(sd.default.device[1])['max_output_channels']), dtype=np.float32)
 
     outdata[:] = np.zeros_like(outdata)
 
-    print(len(amplitude_array))
 
     while len(amplitude_array) > 0 and frames > 0: 
 
         duration = amplitude_array[0][0]
         this_frames = min(duration, frames)
+        # this_frames = duration
+        # this_frames = frames
 
         # Create a time index for this block
         t = (np.arange(this_frames) + phase) * phase_increment
@@ -86,6 +83,7 @@ def audio_callback(outdata, frames, time, status):
         channel_data = amplitude_array[0][1:]
         for i in range(len(channel_data)):
             outdata[:this_frames, MAPPING[i]] = sine_wave * channel_data[i]
+            # outdata[:this_frames, MAPPING[i]] = sine_wave * 0.5
 
         outdata = outdata[this_frames:]
 
@@ -93,8 +91,10 @@ def audio_callback(outdata, frames, time, status):
         amplitude_array[0][0] -= this_frames
 
         if amplitude_array[0][0] == 0: 
-            print("POPPING!")
+            # print("POPPING!")
             amplitude_array.pop()
+
+    
 
 
 async def handler(websocket):
@@ -104,7 +104,13 @@ async def handler(websocket):
     # amplitude_array = [0] * NUMBER_ACTUATORS 
     amplitude_array = []
     duration_array = [0] * NUMBER_ACTUATORS
+
+    seen_message = False
+
     async for message in websocket:
+        # if not seen_message: 
+        #     seen_message = True
+        #     await asyncio.sleep(0.5)
         data = json.loads(message)
         print("Received data:", data)
         # Update the global amplitude array
@@ -153,7 +159,7 @@ if __name__ == "__main__":
         print("Running in audio output mode.")
         with sd.OutputStream(samplerate=SAMPLE_RATE,
                             channels=sd.query_devices(sd.default.device[1])['max_output_channels'],
-                             blocksize=1024):
+                            callback=audio_callback, blocksize=0):
             asyncio.run(main())
     else:
         print("Running in debug mode. No audio output will be generated.")
