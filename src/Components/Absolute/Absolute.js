@@ -51,47 +51,41 @@ const Experiment = () => {
     const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
     // create an array of 6 values, all 0 except the chosen actuator
     console.log("Actuator:", NUM_ACTUATORS);
-    let amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
+    const amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
     const message = JSON.stringify({
       amplitudes,
       timestamp: Date.now(),
     });
 
-
-    
-    // console.log(off_amplitudes)
-    // console.log(amplitudes)
-    // const nu_message = JSON.stringify({
-    //   amplitudes,
-    //   timestamp: Date.now(),
-    // });
-
-    // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    //   wsRef.current.send(message);
-    //   setHasBeenPlayed(true);
-    // } else {
-    //   console.log("Websocket not connected");
-    // }
-
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // Send first message
-      const message = JSON.stringify({
+      let message = JSON.stringify({
           amplitudes,
           timestamp: Date.now(),
+          duration: 1000
       });
       wsRef.current.send(message);
+      // 
       setHasBeenPlayed(true);
 
-      amplitudes = Array(NUM_ACTUATORS).fill(0)
+      // Send second message
+
+      let off_amplitudes = [0,0,0,0,0,0]
+
+      let message2 = JSON.stringify({
+        amplitudes: off_amplitudes,
+        timestamp: Date.now(),
+        duration: 200
+    });
+    wsRef.current.send(message2);
+
+    let message3 = JSON.stringify({
+      amplitudes,
+      timestamp: Date.now(),
+      duration: 1000
+  });
+  wsRef.current.send(message3);
   
-      // Wait 1 second then send second message
-      setTimeout(() => {
-          const nu_message = JSON.stringify({
-              amplitudes,
-              timestamp: Date.now(),
-          });
-          wsRef.current.send(nu_message);
-      }, 1000);
   } else {
       console.log("Websocket not connected");
   }

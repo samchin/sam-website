@@ -117,25 +117,19 @@ async def handler(websocket):
     print("Client connected.")
     global amplitude_array, df
 
-    # amplitude_array = [0] * NUMBER_ACTUATORS 
     amplitude_array = []
     duration_array = [0] * NUMBER_ACTUATORS
 
-    seen_message = False
 
     async for message in websocket:
-        # if not seen_message: 
-        #     seen_message = True
-        #     await asyncio.sleep(0.5)
         data = json.loads(message)
         print("Received data:", data)
         # Update the global amplitude array
+    
         duration = data["duration"]*SAMPLE_RATE/1000
         duration = int(duration)
         amplitude_array.append([duration] + data["amplitudes"])
-        # print(duration)
         timestamp = data["timestamp"]
-        # duration_array = data["duration"]
 
         # Update the global dataframe
         new_data = pd.DataFrame([{
