@@ -162,3 +162,10 @@ input:checked + .slider:before {
   color: #4299e1;
   margin-right: 4px;
 }
+
+
+.actuator-label {
+  user-select: none;
+  pointer-events: none;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
