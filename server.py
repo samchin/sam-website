@@ -23,11 +23,11 @@ NUMBER_ACTUATORS = int(os.getenv("REACT_APP_NUMBER_ACTUATOR", 0))
 WINDOW_SIZE = int(os.getenv("REACT_APP_WINDOW_SAVING", 10000))
 
 # Parse MAPPING as a dictionary
-# # mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
+mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
 # # mapping_str = ("1,2,3,4.5,6")
 # # mapping_str = ("2,3,4,5,6,7")
-mapping_str = ("2,3,5,7,6,4") # OVER THE EAR
-# mapping_str =("2,3,5,4,6,7") 
+#mapping_str = ("2,3,5,7,6,4") # OVER THE EAR
+
 MAPPING = {i: int(v) for i, v in enumerate(mapping_str.split(","))}
 
 df = pd.DataFrame({
