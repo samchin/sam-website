@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Absolute.css';
+import '../DeviceTypeHandler';
 
 const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
 const INITIAL_AMPLITUDE = parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE);
@@ -8,6 +9,10 @@ const INITIAL_ERRORS_ACCEPTED = parseInt(process.env.REACT_APP_REVERSAL);
 const PID = parseInt(process.env.REACT_APP_PID);
 
 const Experiment = () => {
+
+  const [deviceType, setDeviceType] = useState('');
+  const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
+
   const [examinatorMode, setExaminatorMode] = useState(true);
   const [startAmplitude, setStartAmplitude] = useState(INITIAL_AMPLITUDE);
   const [stepSize, setStepSize] = useState(INITIAL_STEP_SIZE);
@@ -39,23 +44,59 @@ const Experiment = () => {
     setErrorCount(0);
     setHasBeenPlayed(false);
   };
+  useEffect(() => {
+    // Get device type from URL
+    const params = new URLSearchParams(window.location.search);
+    const deviceParam = params.get('DEVICE_TYPE');
 
-  // Simulate playing the sound (for now, just a console.log)
+    if (!deviceParam || !validDeviceTypes.includes(deviceParam.toLowerCase())) {
+      console.error('Invalid or missing device type');
+      return;
+    }
+
+    setDeviceType(deviceParam.toLowerCase());
+  }, []);
+
+  // Modify handlePlay to use deviceType
   const handlePlay = () => {
     const timestamp = new Date().toISOString();
     const type = "PLAY_SIGNAL";
 
-    setTrialData(prev => [...prev, { amplitude: currentAmplitude, hasSignal:"", correct:"", timestamp:timestamp, type:type}]);
+    setTrialData(prev => [...prev, { 
+      amplitude: currentAmplitude, 
+      hasSignal: "", 
+      correct: "", 
+      timestamp: timestamp, 
+      type: type,
+      deviceType: deviceType // Add device type to trial data
+    }]);
 
-    // choose random actuator
-    const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
-    // create an array of 6 values, all 0 except the chosen actuator
-    console.log("Actuator:", NUM_ACTUATORS);
-    const amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
-    const message = JSON.stringify({
-      amplitudes,
-      timestamp: Date.now(),
-    });
+    // Modify amplitudes based on device type
+    let amplitudes;
+    switch(deviceType) {
+      case 'necklace':
+        // Your necklace-specific logic
+        amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => 
+          i === Math.floor(Math.random() * NUM_ACTUATORS) ? currentAmplitude : 0
+        );
+        break;
+      case 'overear':
+        // Your over-ear specific logic
+        amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => 
+          i === Math.floor(Math.random() * NUM_ACTUATORS) ? currentAmplitude : 0
+        );
+        break;
+      case 'bracelet':
+        // Your bracelet-specific logic
+        amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => 
+          i === Math.floor(Math.random() * NUM_ACTUATORS) ? currentAmplitude : 0
+        );
+        break;
+      default:
+        console.error('Invalid device type');
+        return;
+    }
+
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // Send first message
@@ -215,6 +256,9 @@ const Experiment = () => {
 
   return (
     <div className="container">
+    <div className="deviceType">
+      current device: {deviceType}
+    </div>
       {/* Examinator mode toggle (always visible) */}
       <button className="examinatorToggle" onClick={() => setExaminatorMode(!examinatorMode)}>
         Examinator
@@ -232,8 +276,8 @@ const Experiment = () => {
               {hasBeeenPlayed && (
                 <div className="responseButtons">
                   <p>Did you hear a signal?</p>
-                  <button className="responseButton" onClick={() => handleResponse(true)}>Signal</button>
-                  <button className="responseButton" onClick={() => handleResponse(false)}>No Signal</button>
+                  <button className="responseButton" onClick={() => handleResponse(true)}>Signal First</button>
+                  <button className="responseButton" onClick={() => handleResponse(false)}>Signal Second</button>
                 </div>
               )}
             </div>
