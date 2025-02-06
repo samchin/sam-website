@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Circle.css';
 import ActuatorChart from './ActuatorChart';
+import '../DeviceTypeHandler'
 //convert to integer
 const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
 const CIRCLE_RADIUS = 200; // px
@@ -25,10 +26,21 @@ function Circle() {
   const [numActuators, setNumActuators] = useState(0);
   const [actuatorsDataArray, setActuatorsDataArray] = useState([]);
   const [sendData, setSendData] = useState(true); // Toggle state for sending data
+  const [deviceType, setDeviceType] = useState('');
 
 
   // Keep track of start time to send a duration in messages
   const [startTime] = useState(Date.now());
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const deviceParam = params.get('DEVICE_TYPE');
+    const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
+  
+    if (deviceParam && validDeviceTypes.includes(deviceParam.toLowerCase())) {
+      setDeviceType(deviceParam.toLowerCase());
+    }
+  }, []);
 
   useEffect(() => {
     // Determine center after mount
@@ -175,6 +187,7 @@ function Circle() {
       const { x, y, inside } = mousePosRef.current;
       const amplitudes = computeAmplitudes(x, y, inside);
       const message = JSON.stringify({
+        device: deviceType,
         amplitudes,
         timestamp: Date.now(),
         duration: UPDATE_INTERVAL 
@@ -204,7 +217,9 @@ function Circle() {
 
   return (
     <div className="cirlceapp">
+      
       <div className="circleheader">
+      <div className="deviceType">Device: {deviceType}</div>
         <div className="containercircle">
           {/* Toggle switch for sending data */}
           <svg

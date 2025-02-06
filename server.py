@@ -130,11 +130,11 @@ async def handler(websocket):
         duration = int(duration)
         amplitude_array.append([duration] + data["amplitudes"])
         timestamp = data["timestamp"]
-        device_type = data["device_type"]
+        device_type = data["device"]
 
         # Update the global dataframe
         new_data = pd.DataFrame([{
-            # "device": device_type,
+            "device": device_type,
             "timestamp": timestamp,
             "amplitudes": data["amplitudes"],
             "duration": data["duration"],

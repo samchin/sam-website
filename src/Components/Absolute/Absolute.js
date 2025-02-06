@@ -12,7 +12,7 @@ const Experiment = () => {
 
   const [deviceType, setDeviceType] = useState('');
   const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
-
+  const off_amplitudes = [0,0,0,0,0,0];
   const [examinatorMode, setExaminatorMode] = useState(true);
   const [startAmplitude, setStartAmplitude] = useState(INITIAL_AMPLITUDE);
   const [stepSize, setStepSize] = useState(INITIAL_STEP_SIZE);
@@ -68,39 +68,25 @@ const Experiment = () => {
       correct: "", 
       timestamp: timestamp, 
       type: type,
-      deviceType: deviceType // Add device type to trial data
+      device: deviceType 
     }]);
 
-    // Modify amplitudes based on device type
-    let amplitudes;
-    switch(deviceType) {
-      case 'necklace':
-        // Your necklace-specific logic
-        amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => 
-          i === Math.floor(Math.random() * NUM_ACTUATORS) ? currentAmplitude : 0
-        );
-        break;
-      case 'overear':
-        // Your over-ear specific logic
-        amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => 
-          i === Math.floor(Math.random() * NUM_ACTUATORS) ? currentAmplitude : 0
-        );
-        break;
-      case 'bracelet':
-        // Your bracelet-specific logic
-        amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => 
-          i === Math.floor(Math.random() * NUM_ACTUATORS) ? currentAmplitude : 0
-        );
-        break;
-      default:
-        console.error('Invalid device type');
-        return;
-    }
-
+   // choose random actuator
+   const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
+   // create an array of 6 values, all 0 except the chosen actuator
+   console.log("Actuator:", NUM_ACTUATORS);
+   const amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
+   const message = JSON.stringify({
+     device: deviceType,
+     amplitudes,
+     timestamp: Date.now(),
+     duration: 1000
+   });
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // Send first message
       let message = JSON.stringify({
+          device: deviceType,
           amplitudes,
           timestamp: Date.now(),
           duration: 1000
@@ -111,9 +97,10 @@ const Experiment = () => {
 
       // Send second message
 
-      let off_amplitudes = [0,0,0,0,0,0]
+      
 
       let message2 = JSON.stringify({
+        device: deviceType,
         amplitudes: off_amplitudes,
         timestamp: Date.now(),
         duration: 200
@@ -121,6 +108,7 @@ const Experiment = () => {
     wsRef.current.send(message2);
 
     let message3 = JSON.stringify({
+      device: deviceType,
       amplitudes,
       timestamp: Date.now(),
       duration: 1000
