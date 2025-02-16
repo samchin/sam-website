@@ -62,15 +62,6 @@ const Experiment = () => {
     const timestamp = new Date().toISOString();
     const type = "PLAY_SIGNAL";
 
-    setTrialData(prev => [...prev, { 
-      amplitude: currentAmplitude, 
-      hasSignal: "", 
-      correct: "", 
-      timestamp: timestamp, 
-      type: type,
-      device: deviceType 
-    }]);
-
    // choose random actuator
    const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
    // create an array of 6 values, all 0 except the chosen actuator
@@ -96,9 +87,6 @@ const Experiment = () => {
       setHasBeenPlayed(true);
 
       // Send second message
-
-      
-
       let message2 = JSON.stringify({
         device: deviceType,
         amplitudes: off_amplitudes,
@@ -128,7 +116,7 @@ const Experiment = () => {
     const timestamp = new Date().toISOString();
     const type = "GUESS"
 
-    setTrialData(prev => [...prev, { amplitude: currentAmplitude, hasSignal:hasRealSignal, correct:correct, timestamp:timestamp, type:type}]);
+    setTrialData(prev => [...prev, { amplitude: currentAmplitude, hasSignal:hasRealSignal, correct:correct, timestamp:timestamp, type:type, device:deviceType}]);
 
     // randomly determine if there is a real signal for next trial
     const s = Math.random() < 0.5;
