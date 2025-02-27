@@ -181,3 +181,54 @@
     color: #4299e1;
     margin-right: 4px;
   }
+
+.intervalIndicators {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.intervalIndicator {
+    width: 120px;
+    height: 60px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.intervalIndicator.active {
+    background-color: #4CAF50;
+    border-color: #388E3C;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.intervalGap {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.intervalGap.active {
+    background-color: #FFC107;
+    border-color: #FFA000;
+}
+
+.indicatorLabel {
+    font-weight: bold;
+    text-align: center;
+}
+
+.keyboardShortcut {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 5px;
+}
