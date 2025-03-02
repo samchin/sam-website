@@ -466,11 +466,10 @@ const Experiment = () => {
         </div>
       
         <div className="controlRow">
-          {experimentStarted && !experimentEnded && (
+          {experimentStarted && !experimentEnded && !hasBeenPlayed && !firstIntervalActive && !secondIntervalActive && !intervalGap && (
             <button 
               className="playButton" 
-              onClick={handlePlay}
-              disabled={hasBeenPlayed || firstIntervalActive || secondIntervalActive || intervalGap}>
+              onClick={handlePlay}>
               Play <span className="keyboardShortcut">(Space)</span>
             </button>
           )}
@@ -621,7 +620,6 @@ const Experiment = () => {
         </div>
       )}
       
-
     </div>
   );
 };
