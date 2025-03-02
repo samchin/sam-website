@@ -1,3 +1,14 @@
+# How to run
+
+1) cmd shift p select interperter haptichearing
+2) cd sam-website
+In terminal 1
+3) conda activate haptichearing
+4) python server.py
+In apple terminal
+5) MAKE SURE directory is sam-website, (base) works
+6) npm run start
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
@@ -68,3 +79,5 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+

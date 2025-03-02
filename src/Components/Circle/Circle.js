@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Circle.css';
 import ActuatorChart from './ActuatorChart';
+import '../DeviceTypeHandler'
 //convert to integer
 const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
 const CIRCLE_RADIUS = 200; // px
@@ -25,10 +26,21 @@ function Circle() {
   const [numActuators, setNumActuators] = useState(0);
   const [actuatorsDataArray, setActuatorsDataArray] = useState([]);
   const [sendData, setSendData] = useState(true); // Toggle state for sending data
+  const [deviceType, setDeviceType] = useState('');
 
 
   // Keep track of start time to send a duration in messages
   const [startTime] = useState(Date.now());
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const deviceParam = params.get('DEVICE_TYPE');
+    const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
+  
+    if (deviceParam && validDeviceTypes.includes(deviceParam.toLowerCase())) {
+      setDeviceType(deviceParam.toLowerCase());
+    }
+  }, []);
 
   useEffect(() => {
     // Determine center after mount
@@ -175,8 +187,10 @@ function Circle() {
       const { x, y, inside } = mousePosRef.current;
       const amplitudes = computeAmplitudes(x, y, inside);
       const message = JSON.stringify({
+        device: deviceType,
         amplitudes,
         timestamp: Date.now(),
+        duration: UPDATE_INTERVAL 
       });
 
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -189,14 +203,30 @@ function Circle() {
     };
   }, [startTime, sendData]); // Depend on sendData to update interval when toggle changes
 
-  // Generate actuator points
+  // Generate actuator points with 120-degree clockwise rotation
   const actuatorPoints = [];
+  const rotationOffset = 120; // Clockwise rotation in degrees (equivalent to 2 positions)
+  
   for (let i = 0; i < NUM_ACTUATORS; i++) {
-    const angle = (360 / NUM_ACTUATORS) * i;
-    const rad = (angle * Math.PI) / 180;
+    // Apply rotation offset to visual position only
+    const visualAngle = (360 / NUM_ACTUATORS) * i + rotationOffset;
+    const rad = (visualAngle * Math.PI) / 180;
     const ax = CIRCLE_RADIUS * Math.cos(rad);
     const ay = CIRCLE_RADIUS * Math.sin(rad);
-    actuatorPoints.push({ x: ax, y: ay });
+    
+    // Calculate label position slightly outside the point
+    const labelOffset = 20;
+    const lx = (CIRCLE_RADIUS + labelOffset) * Math.cos(rad);
+    const ly = (CIRCLE_RADIUS + labelOffset) * Math.sin(rad);
+    
+    // The index i remains unchanged for amplitude calculations
+    actuatorPoints.push({ 
+      x: ax, 
+      y: ay,
+      labelX: lx,
+      labelY: ly,
+      originalIndex: i // Store original index for reference
+    });
   }
 
   const trailPath = generateTrailPath(trail);
@@ -204,8 +234,8 @@ function Circle() {
   return (
     <div className="cirlceapp">
       <div className="circleheader">
+        <div className="deviceType">Device: {deviceType}</div>
         <div className="containercircle">
-          {/* Toggle switch for sending data */}
           <svg
             ref={circleRef}
             width={CIRCLE_RADIUS * 2}
@@ -219,13 +249,28 @@ function Circle() {
               className="main-circle"
             />
             {actuatorPoints.map((p, i) => (
-              <circle
-                key={i}
-                cx={CIRCLE_RADIUS + p.x}
-                cy={CIRCLE_RADIUS + p.y}
-                r={8}
-                className="actuator-point"
-              />
+              <g key={i}>
+                <circle
+                  cx={CIRCLE_RADIUS + p.x}
+                  cy={CIRCLE_RADIUS + p.y}
+                  r={8}
+                  className="actuator-point"
+                />
+                <text
+                  x={CIRCLE_RADIUS + p.labelX}
+                  y={CIRCLE_RADIUS + p.labelY}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="actuator-label"
+                  style={{
+                    fontSize: '14px',
+                    fill: '#fff',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {i+1}
+                </text>
+              </g>
             ))}
             {trailPath && <path d={trailPath} className="mouse-trail" />}
             {mousePos.inside && (
@@ -297,7 +342,6 @@ function computeAmplitudes(dx, dy, inside) {
 
   return amplitudes;
 }
-
 
 function generateTrailPath(trail) {
   if (trail.length < 2) return null;

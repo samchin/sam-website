@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './Absolute.css';
+import '../DeviceTypeHandler';
 
 const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
 const INITIAL_AMPLITUDE = parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE);
@@ -8,6 +9,10 @@ const INITIAL_ERRORS_ACCEPTED = parseInt(process.env.REACT_APP_REVERSAL);
 const PID = parseInt(process.env.REACT_APP_PID);
 
 const Experiment = () => {
+
+  const [deviceType, setDeviceType] = useState('');
+  const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
+  const off_amplitudes = [0,0,0,0,0,0];
   const [examinatorMode, setExaminatorMode] = useState(true);
   const [startAmplitude, setStartAmplitude] = useState(INITIAL_AMPLITUDE);
   const [stepSize, setStepSize] = useState(INITIAL_STEP_SIZE);
@@ -39,59 +44,77 @@ const Experiment = () => {
     setErrorCount(0);
     setHasBeenPlayed(false);
   };
+  useEffect(() => {
+    // Get device type from URL
+    const params = new URLSearchParams(window.location.search);
+    const deviceParam = params.get('DEVICE_TYPE');
 
-  // Simulate playing the sound (for now, just a console.log)
+    if (!deviceParam || !validDeviceTypes.includes(deviceParam.toLowerCase())) {
+      console.error('Invalid or missing device type');
+      return;
+    }
+
+    setDeviceType(deviceParam.toLowerCase());
+  }, []);
+
+  // Modify handlePlay to use deviceType
   const handlePlay = () => {
     const timestamp = new Date().toISOString();
     const type = "PLAY_SIGNAL";
 
-    setTrialData(prev => [...prev, { amplitude: currentAmplitude, hasSignal:"", correct:"", timestamp:timestamp, type:type}]);
+    setTrialData(prev => [...prev, { 
+      amplitude: currentAmplitude, 
+      hasSignal: "", 
+      correct: "", 
+      timestamp: timestamp, 
+      type: type,
+      device: deviceType 
+    }]);
 
-    // choose random actuator
-    const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
-    // create an array of 6 values, all 0 except the chosen actuator
-    console.log("Actuator:", NUM_ACTUATORS);
-    let amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
-    const message = JSON.stringify({
-      amplitudes,
-      timestamp: Date.now(),
-    });
-
-
-    
-    // console.log(off_amplitudes)
-    // console.log(amplitudes)
-    // const nu_message = JSON.stringify({
-    //   amplitudes,
-    //   timestamp: Date.now(),
-    // });
-
-    // if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-    //   wsRef.current.send(message);
-    //   setHasBeenPlayed(true);
-    // } else {
-    //   console.log("Websocket not connected");
-    // }
+   // choose random actuator
+   const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
+   // create an array of 6 values, all 0 except the chosen actuator
+   console.log("Actuator:", NUM_ACTUATORS);
+   const amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
+   const message = JSON.stringify({
+     device: deviceType,
+     amplitudes,
+     timestamp: Date.now(),
+     duration: 1000
+   });
 
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // Send first message
-      const message = JSON.stringify({
+      let message = JSON.stringify({
+          device: deviceType,
           amplitudes,
           timestamp: Date.now(),
+          duration: 1000
       });
       wsRef.current.send(message);
+      // 
       setHasBeenPlayed(true);
 
-      amplitudes = Array(NUM_ACTUATORS).fill(0)
+      // Send second message
+
+      
+
+      let message2 = JSON.stringify({
+        device: deviceType,
+        amplitudes: off_amplitudes,
+        timestamp: Date.now(),
+        duration: 200
+    });
+    wsRef.current.send(message2);
+
+    let message3 = JSON.stringify({
+      device: deviceType,
+      amplitudes,
+      timestamp: Date.now(),
+      duration: 1000
+  });
+  wsRef.current.send(message3);
   
-      // Wait 1 second then send second message
-      setTimeout(() => {
-          const nu_message = JSON.stringify({
-              amplitudes,
-              timestamp: Date.now(),
-          });
-          wsRef.current.send(nu_message);
-      }, 1000);
   } else {
       console.log("Websocket not connected");
   }
@@ -221,6 +244,9 @@ const Experiment = () => {
 
   return (
     <div className="container">
+    <div className="deviceType">
+      current device: {deviceType}
+    </div>
       {/* Examinator mode toggle (always visible) */}
       <button className="examinatorToggle" onClick={() => setExaminatorMode(!examinatorMode)}>
         Examinator
@@ -238,8 +264,8 @@ const Experiment = () => {
               {hasBeeenPlayed && (
                 <div className="responseButtons">
                   <p>Did you hear a signal?</p>
-                  <button className="responseButton" onClick={() => handleResponse(true)}>Signal</button>
-                  <button className="responseButton" onClick={() => handleResponse(false)}>No Signal</button>
+                  <button className="responseButton" onClick={() => handleResponse(true)}>Signal First</button>
+                  <button className="responseButton" onClick={() => handleResponse(false)}>Signal Second</button>
                 </div>
               )}
             </div>

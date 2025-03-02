@@ -1,110 +1,41 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { loadButtonPositions } from './buttonPositions';
 import './Localization.css';
 
-const NUM_ACTUATORS = parseInt(process.env.REACT_APP_NUMBER_ACTUATOR);
-const INITIAL_AMPLITUDE = parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE);
-const INITIAL_STEP_SIZE = parseFloat(process.env.REACT_APP_STEP_RESOLUTION);
-const INITIAL_ERRORS_ACCEPTED = parseInt(process.env.REACT_APP_REVERSAL);
+const NUM_ACTUATORS = 6; // 6 motors
+const TRIALS_PER_MOTOR = 10; // Each motor repeated 10 times
+const STIMULUS_DURATION = 500; // 500 ms
+const RESPONSE_DELAY = 1000; // 1000 ms delay after participant's guess
+const START_DELAY = 1000; // 1000 ms delay after start experiment is pressed
 const PID = parseInt(process.env.REACT_APP_PID);
+const WS_URL = 'ws://127.0.0.1:8000';
 
 const Experiment = () => {
-  const [examinatorMode, setExaminatorMode] = useState(true);
-  const [startAmplitude, setStartAmplitude] = useState(INITIAL_AMPLITUDE);
-  const [stepSize, setStepSize] = useState(INITIAL_STEP_SIZE);
-  const [errorsAccepted, setErrorsAccepted] = useState(INITIAL_ERRORS_ACCEPTED);
-  const [hasRealSignal, setHasRealSignal] = useState(false);
-
-  const [bestAmplitude, setBestAmplitude] = useState(startAmplitude);
-  const [currentAmplitude, setCurrentAmplitude] = useState(startAmplitude);
-  const [trialData, setTrialData] = useState([]); // {amplitude, correct, timestamp} objects
-  const [errorCount, setErrorCount] = useState(0);
+  const [deviceType, setDeviceType] = useState('');
+  const [buttonPositions, setButtonPositions] = useState([]);
+  const [trialSequence, setTrialSequence] = useState([]);
+  const [currentTrialIndex, setCurrentTrialIndex] = useState(0);
+  const [activeMotor, setActiveMotor] = useState(null);
+  const [responses, setResponses] = useState([]);
   const [experimentStarted, setExperimentStarted] = useState(false);
   const [experimentEnded, setExperimentEnded] = useState(false);
-
-  const [hasBeeenPlayed, setHasBeenPlayed] = useState(false);
-
+  const [waitingForResponse, setWaitingForResponse] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [isAcclimationMode, setIsAcclimationMode] = useState(true);
+  const [currentAcclimationButton, setCurrentAcclimationButton] = useState(1);
+  const [isReversedAcclimation, setIsReversedAcclimation] = useState(false);
   const wsRef = useRef(null);
 
-  // Handle start of experiment
-  const handleStart = () => {
-    const s = Math.random() < 0.5;
-    setHasRealSignal(s);
-
-    setBestAmplitude(startAmplitude);
-    setExperimentStarted(true);
-    setExperimentEnded(false);
-    setExaminatorMode(false);
-    setCurrentAmplitude(startAmplitude);
-    setTrialData([]);
-    setErrorCount(0);
-    setHasBeenPlayed(false);
-  };
-
-  // Simulate playing the sound (for now, just a console.log)
-  const handlePlay = () => {
-    const timestamp = new Date().toISOString();
-    const type = "PLAY_SIGNAL";
-
-    setTrialData(prev => [...prev, { amplitude: currentAmplitude, hasSignal:"", correct:"", timestamp:timestamp, type:type}]);
-
-    // choose random actuator
-    const actuator = Math.floor(Math.random() * NUM_ACTUATORS);
-    // create an array of 6 values, all 0 except the chosen actuator
-    console.log("Actuator:", NUM_ACTUATORS);
-    const amplitudes = Array.from({ length: NUM_ACTUATORS }, (_, i) => i === actuator ? currentAmplitude : 0);
-    const message = JSON.stringify({
-      amplitudes,
-      timestamp: Date.now(),
-    });
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(message);
-      setHasBeenPlayed(true);
-    } else {
-      console.log("Websocket not connected");
-    }
-  };
-
-  const handleResponse = (hasSignal) => {
-    console.log("Response:", hasSignal);
-    console.log("Real signal:", hasRealSignal);
-    const correct = (hasSignal === hasRealSignal);
-    const timestamp = new Date().toISOString();
-    const type = "GUESS"
-
-    setTrialData(prev => [...prev, { amplitude: currentAmplitude, hasSignal:hasRealSignal, correct:correct, timestamp:timestamp, type:type}]);
-
-    // randomly determine if there is a real signal for next trial
-    const s = Math.random() < 0.5;
-    setHasRealSignal(s);
-
-    if (correct) {
-      const newAmplitude = Math.round((currentAmplitude - stepSize) * 10) / 10;
-      if (newAmplitude < bestAmplitude) {
-        setBestAmplitude(newAmplitude);
-        setErrorCount(0);
-      }
-      setCurrentAmplitude(newAmplitude);
-    } else {
-      setCurrentAmplitude(prev => prev + (stepSize / 2));
-      setErrorCount(prev => prev + 1);
-    }
-
-    // Check if error threshold reached
-    if (errorCount + (correct ? 0 : 1) >= errorsAccepted) {
-      alert("Staircase ended. Errors accepted threshold reached.");
-      setExperimentEnded(true);
-    }
-
-    setHasBeenPlayed(false);
-  };
-
+  // Set up WebSocket connection
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000');
+    console.log('Initializing WebSocket connection...');
+    const ws = new WebSocket(WS_URL);
+    console.log('Attempting to connect to WebSocket at:', WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => {
       console.log('WebSocket connected');
+      setWsConnected(true);
     };
 
     ws.onmessage = (message) => {
@@ -113,155 +44,346 @@ const Experiment = () => {
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
+      setWsConnected(false);
     };
 
     ws.onclose = () => {
       console.log('WebSocket closed');
+      setWsConnected(false);
     };
 
     return () => {
-      ws.close();
+      console.log('Cleaning up WebSocket connection');
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, []);
 
-  // // Plot dimensions
-  // const plotWidth = 500;
-  // const plotHeight = 200;
-  // const padding = 30;
+  // Set device type from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const deviceParam = params.get('DEVICE_TYPE');
+    const validDevices = ['overear', 'bracelet', 'necklace'];
 
-  // // Calculate maximum and minimum amplitude
-  // const maxAmplitude = trialData.length > 0
-  //   ? Math.max(...trialData.map(t => t.amplitude)) + 2 * stepSize
-  //   : startAmplitude + stepSize;
+    if (deviceParam && validDevices.includes(deviceParam.toLowerCase())) {
+      setDeviceType(deviceParam.toLowerCase());
+      console.log('Device type set to:', deviceParam.toLowerCase());
+    }
+  }, []);
 
-  // const minAmplitude = trialData.length > 0
-  //   ? Math.min(...trialData.map(t => t.amplitude)) - 2 * stepSize
-  //   : 0;
+  // Load button positions
+  useEffect(() => {
+    if (!deviceType) return;
 
-  // // Generate coordinates for the plot
-  // const points = trialData.map((t, i) => {
-  //   const x = trialData.length > 1
-  //     ? padding + (i / (trialData.length - 1)) * (plotWidth - 2 * padding)
-  //     : plotWidth / 2;
-  //   const y = trialData.length > 1
-  //     ? padding + ((maxAmplitude - t.amplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding)
-  //     : plotHeight / 2;
+    const savedPositions = loadButtonPositions(deviceType);
+    if (savedPositions) {
+      setButtonPositions(savedPositions);
+      console.log('Loaded button positions for device:', deviceType);
+    } else {
+      console.warn(`No saved positions found for ${deviceType}`);
+    }
+  }, [deviceType]);
 
-  //   return { x, y, correct: t.correct };
-  // });
+  const generateTrialSequence = () => {
+    const sequence = [];
+  
+    // Outer loop iterates over the number of actuators
+    for (let i = 0; i < NUM_ACTUATORS; i++) {
+      // Inner loop iterates over trials per motor
+      for (let j = 0; j < TRIALS_PER_MOTOR; j++) {
+        sequence.push(i);
+        // Each actuator is added to the list TRIALS_PER_MOTOR number of times
+      }
+    }
+  
+    // Shuffle the sequence
+    shuffleArray(sequence);
+  
+    return sequence;
+  };
+  
+  // Shuffle array function
+  const shuffleArray = (array) => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  };
 
-  // String for polyline
-  // const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+  const activateMotor = (motorIndex) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket is not connected');
+      return;
+    }
+
+    // Apply 120-degree rotation (2 positions clockwise)
+    const rotatedIndex = (motorIndex + 2) % NUM_ACTUATORS;
+    //console.log('motor index', motorIndex);
+    
+    // Ensure amplitude is exactly 1 for the active motor
+    const amplitudes = new Array(NUM_ACTUATORS).fill(0);
+    amplitudes[rotatedIndex] = 1;
+
+    const message = JSON.stringify({
+      device: deviceType,
+      amplitudes,
+      timestamp: Date.now(),
+      duration: STIMULUS_DURATION
+    });
+
+    console.log('----------------------------------------');
+    console.log(`MOTOR ${motorIndex + 1} ACTIVATED (rotated to position ${rotatedIndex + 1})`);
+    console.log('Amplitudes:', amplitudes);
+    console.log('----------------------------------------');
+    wsRef.current.send(message);
+  };
+
+  const deactivateMotor = () => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket is not connected');
+      return;
+    }
+
+    const message = JSON.stringify({
+      device: deviceType,
+      amplitudes: new Array(NUM_ACTUATORS).fill(0),
+      timestamp: Date.now(),
+      duration: 0
+    });
+
+    console.log('Sending motor deactivation:', message);
+    wsRef.current.send(message);
+  };
+
+  const startTrial = (trialIndex) => {
+    if (trialIndex >= NUM_ACTUATORS * TRIALS_PER_MOTOR) {
+      endExperiment();
+      return;
+    }
+    
+    if (trialSequence.length === 0) {
+      console.error('!!!trial sequence is empty!!!!!!');
+      return;
+    }
+
+    // Get the current motor index from the sequence
+    let motor = trialSequence[trialIndex];
+    if (motor === undefined || isNaN(motor)) {
+      console.error('Motor index is undefined or NaN, skipping to the next trial');
+      motor = trialSequence[trialIndex + 1];
+      setCurrentTrialIndex(trialIndex + 1);
+    }
+    console.log(`Starting trial ${trialIndex + 1}, activating motor ${motor}`);
+    
+    // Set states
+    setActiveMotor(motor);
+    setWaitingForResponse(true);
+    setCurrentTrialIndex(trialIndex);
+
+    // Ensure WebSocket is ready before sending
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Activate the selected motor
+      activateMotor(motor);
+
+      // Deactivate after stimulus duration
+      setTimeout(() => {
+        setActiveMotor(null);
+        deactivateMotor();
+      }, STIMULUS_DURATION);
+    } else {
+      console.error('WebSocket not ready for trial:', trialIndex);
+    }
+  };
+
+  const handleAcclimationClick = (motorPosition) => {
+    if (!wsConnected) return;
+    
+    // Only allow clicking the current prompted button
+    if (motorPosition + 1 !== currentAcclimationButton) {
+      // Instead of alert, we'll update the instruction text
+      return;
+    }
+    
+    // Activate the motor for the standard duration
+    activateMotor(motorPosition);
+    
+    // Deactivate after stimulus duration
+    setTimeout(() => {
+      deactivateMotor();
+    }, STIMULUS_DURATION);
+
+    // Move to next button
+    if (currentAcclimationButton < NUM_ACTUATORS) {
+      setCurrentAcclimationButton(prev => prev + 1);
+    } else {
+      // Mark acclimation as complete but don't start experiment
+      setCurrentAcclimationButton(0); // 0 indicates all buttons have been pressed
+    }
+  };
+
+  const handleStartExperiment = () => {
+    if (!wsConnected) {
+      alert('WebSocket is not connected. Please try again.');
+      return;
+    }
+    setWaitingForResponse(false);
+    
+    setIsAcclimationMode(false);
+    
+    // Generate sequence first
+    const sequence = generateTrialSequence();
+    console.log('Generated trial sequence:', sequence);
+    setTrialSequence(sequence);
+    setExperimentStarted(true);
+  };
+
+  // Use useEffect to start the first trial after experimentStarted is set to true
+  useEffect(() => {
+    if (experimentStarted && trialSequence.length > 0) {
+      setTimeout(() => {
+        startTrial(0); // Start from the first trial
+      }, START_DELAY); // 1-second delay before starting the first trial
+    }
+  }, [experimentStarted, trialSequence]);
+
+  const handleResponse = (response) => {
+    if (!waitingForResponse) return;
+
+    const currentMotor = trialSequence[currentTrialIndex];
+    // alert(`Motor activated: ${currentMotor + 1}, You chose: ${response + 1}`); // This will show as a popup: only for debugging comment out for experiment
+
+    // Record response
+    setResponses(prev => [...prev, {
+      motor: currentMotor,
+      response: response,
+      timestamp: new Date(),
+      trialIndex: currentTrialIndex
+    }]);
+
+    setWaitingForResponse(false);
+
+    // Add delay before starting next trial
+    setTimeout(() => {
+      const nextTrialIndex = currentTrialIndex + 1;
+      startTrial(nextTrialIndex);
+    }, RESPONSE_DELAY);
+  };
+
+  const endExperiment = () => {
+    setExperimentEnded(true);
+    setExperimentStarted(false);
+    console.log('Experiment ended. Total responses:', responses.length);
+  };
 
   const handleSaveCSV = () => {
-    // Convert trialData to CSV
-    // CSV Headers
-    const headers = ["Timestamp", "Amplitude", "WasPlayingSignal", "Correct", "Type"];
-    const rows = trialData.map(t => [t.timestamp, t.amplitude, t.hasSignal, t.correct, t.type]);
+    // Debug log to check alignment
+    console.log('Saving responses:', responses);
+    console.log('Trial sequence:', trialSequence);
 
-    let csvContent = headers.join(",") + "\n";
-    rows.forEach(r => {
-      csvContent += r.join(",") + "\n";
+    const headers = ['Trial', 'Motor', 'Response', 'Timestamp', 'PID', 'Device Type'];
+    const rows = responses.map((r, index) => [
+      index + 1,
+      r.motor,
+      r.response,
+      r.timestamp,
+      PID,
+      deviceType,
+    ]);
+
+    let csvContent = headers.join(',') + '\n';
+    rows.forEach((row) => {
+      csvContent += row.join(',') + '\n';
     });
 
-    //save on another page the project configuration
-    const headers2 = ["Start Amplitude", "Step Size", "Errors Accepted", "Best Amplitude"];
-    const rows2 = [[startAmplitude, stepSize, errorsAccepted, bestAmplitude]];
-
-    csvContent += "\n\n" + headers2.join(",") + "\n";
-    rows2.forEach(r => {
-      csvContent += r.join(",") + "\n";
-    });
-
-
-    // Create a blob and trigger download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "absolute_threshold_data_" + String(PID) + ".csv";
-    console.log(String(PID))
+    a.download = `localization_accuracy_${deviceType}_${PID}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
     <div className="container">
-      {/* Examinator mode toggle (always visible) */}
-      <button className="examinatorToggle" onClick={() => setExaminatorMode(!examinatorMode)}>
-        Examinator
-      </button>
+      <h2 style={{ color: 'darkgrey' }}>Localization</h2>
+      
+      {!wsConnected && (
+        <div className="warning">
+          WebSocket not connected. Please check your connection.
+        </div>
+      )}
 
-      {/* Main experiment view */}
-      <div className="experimentArea">
-        <div className="controlRow">
-          {experimentStarted && !experimentEnded && (
-            <button className="playButton" onClick={handlePlay}>Play</button>
-          )}
+      {experimentStarted && !experimentEnded && (
+        <div className="stimulus-container">
+          <p>
+            Trial {currentTrialIndex + 1} / {NUM_ACTUATORS * TRIALS_PER_MOTOR}
+          </p>
+          <div
+            className="stimulus-indicator"
+            style={{
+              visibility: activeMotor !== null ? 'visible' : 'hidden',
+            }}
+          />
+        </div>
+      )}
 
-          {experimentStarted && !experimentEnded && (
-            <div className="responseButtonsContainer">
-              {hasBeeenPlayed && (
-                <div className="responseButtons">
-                     <div className="circle-container">
-                      <button className="circle-button">Button 1</button>
-                      <button className="circle-button">Button 2</button>
-                      <button className="circle-button">Button 3</button>
-                      <button className="circle-button">Button 4</button>
-                      <button className="circle-button">Button 5</button>
-                      <button className="circle-button">Button 6</button>
-                    </div>
-                  <p>Did you hear a signal?</p>
-                  <button className="responseButton" onClick={() => handleResponse(true)}>Signal</button>
-                  <button className="responseButton" onClick={() => handleResponse(false)}>No Signal</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {experimentEnded && (
-            <div>
-              <p>Experiment ended. Please save your data.</p>
-              <button onClick={handleSaveCSV}>Save CSV</button>
-            </div>
-          )}
+      <div className="diagram-container">
+        <img
+          src={`/images/${deviceType}-diagram.jpg`}
+          alt={`${deviceType} diagram`}
+          className="diagram"
+        />
+        <div className="button-overlay">
+          {buttonPositions.map((btn, i) => (
+            <button
+              key={btn.id}
+              className="circle-button"
+              onClick={() => isAcclimationMode ? handleAcclimationClick(i) : handleResponse(i)}
+              style={{
+                position: 'absolute',
+                left: `${btn.x}%`,
+                top: `${btn.y}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            >
+              {i + 1}
+            </button>
+          ))}
         </div>
       </div>
 
-      {examinatorMode && (
-        <div className="examinator">
-          <div className="examinatorPanel">
-            <h2>Examinator Mode</h2>
-            <div className="inputGroup">
-              <label>Start Amplitude:</label>
-              <input
-                type="number"
-                step="0.01"
-                value={startAmplitude}
-                onChange={e => setStartAmplitude(parseFloat(e.target.value))}
-              />
+      {isAcclimationMode && !experimentStarted && !experimentEnded && (
+        <div>
+          {currentAcclimationButton > 0 ? (
+            <p style={{ color: 'darkgrey', marginTop: '20px', textAlign: 'center' }}>
+              Acclimation Mode: Please click button {currentAcclimationButton}
+            </p>
+          ) : (
+            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+              <p style={{ color: 'darkgrey' }}>
+                Acclimation complete! You can start the experiment when ready.
+              </p>
+              <button 
+                onClick={() => {
+                  setIsAcclimationMode(false);
+                  handleStartExperiment();
+                }}
+                disabled={!wsConnected}
+                style={{ marginTop: '10px' }}
+              >
+                Start Experiment
+              </button>
             </div>
-            <div className="inputGroup">
-              <label>Step:</label>
-              <input
-                type="number"
-                step="0.01"
-                value={stepSize}
-                onChange={e => setStepSize(parseFloat(e.target.value))}
-              />
-            </div>
-            <div className="inputGroup">
-              <label>Errors Accepted:</label>
-              <input
-                type="number"
-                value={errorsAccepted}
-                onChange={e => setErrorsAccepted(parseInt(e.target.value))}
-              />
-            </div>
-            {!experimentStarted && (
-              <button className="startButton" onClick={handleStart}>Start</button>
-            )}
-          </div>
+          )}
+        </div>
+      )}
+
+      {experimentEnded && (
+        <div>
+          <p>Experiment Completed!</p>
+          <button onClick={handleSaveCSV}>Save Results</button>
         </div>
       )}
     </div>

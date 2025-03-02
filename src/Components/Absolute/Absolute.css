@@ -139,7 +139,7 @@
 }
 
 .responseButton:last-of-type {
-    background: linear-gradient(135deg, #b12525 0%, #bdbdbd 100%);
+    background: linear-gradient(135deg,  #62da5a 0%, #bdbdbd 100%);
     color: #fff;
 }
 
@@ -160,3 +160,24 @@
 .playButton {
     margin-bottom: 20px; /* Add space between Play and the other buttons */
 }
+
+.device-type {
+    background: #f0f4f8;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #2d3748;
+    display: inline-flex;
+    align-items: center;
+    margin: 5px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  
+  .device-type::before {
+    content: '•';
+    color: #4299e1;
+    margin-right: 4px;
+  }

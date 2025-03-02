@@ -8,10 +8,12 @@ from flask_cors import CORS
 import threading
 from dotenv import load_dotenv
 import os
+import logging
 
 load_dotenv("./.env")
 
-
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 # Retrieve environment variables
 DEBUG = False
 FREQ = int(os.getenv("REACT_APP_FREQ", 200))
@@ -21,11 +23,11 @@ NUMBER_ACTUATORS = int(os.getenv("REACT_APP_NUMBER_ACTUATOR", 0))
 WINDOW_SIZE = int(os.getenv("REACT_APP_WINDOW_SAVING", 10000))
 
 # Parse MAPPING as a dictionary
-# # mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
+mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
 # # mapping_str = ("1,2,3,4.5,6")
 # # mapping_str = ("2,3,4,5,6,7")
-mapping_str = ("2,3,5,7,6,4") # OVER THE EAR
-# mapping_str =("2,3,5,4,6,7") 
+#mapping_str = ("2,3,5,7,6,4") # OVER THE EAR
+
 MAPPING = {i: int(v) for i, v in enumerate(mapping_str.split(","))}
 
 df = pd.DataFrame({
@@ -43,6 +45,7 @@ if not DEBUG:
         device_id = None
         for i, device in enumerate(sd.query_devices()):
             if device['max_output_channels'] >= 8:
+            # if device['max_output_channels'] == 2: 
                 device_id = i
                 break
         if device_id is None:
@@ -51,45 +54,92 @@ if not DEBUG:
         sd.default.device = (None, device_id)
         print(f"Selected audio output device with output channels: {sd.query_devices(device_id)['max_output_channels']}")
         print(sd.default.device)
+        
+
+import numpy as np
 
 def audio_callback(outdata, frames, time, status):
+    """
+    Audio callback function for sounddevice to generate sine waves with varying amplitudes per channel.
+    
+    Args:
+        outdata (numpy.ndarray): Output buffer to fill with audio data
+        frames (int): Number of frames to generate
+        time (CData): Time information (from sounddevice)
+        status (CallbackFlags): Status flags
+        
+    Global variables used:
+        phase (int): Current phase of the sine wave
+        amplitude_array (list): List of [duration, amp_ch1, amp_ch2, ...] arrays
+        MAPPING (list): Channel mapping for output
+    """
     global phase, amplitude_array
-
+    
     if status:
         print("Stream status:", status)
+    
+    # Initialize output buffer with zeros
+    outdata.fill(0)
+    
+    # Keep track of how many frames we've processed
+    frames_processed = 0
+    
+    while len(amplitude_array) > 0 and frames_processed < frames:
+        # Get current amplitude array data
+        duration = amplitude_array[0][0]
+        remaining_frames = frames - frames_processed
+        this_frames = min(duration, remaining_frames)
+        
+        # Generate time indices for this block
+        t = (np.arange(this_frames) + phase) * phase_increment
+        phase += this_frames
+        
+        # Generate base sine wave
+        sine_wave = np.sin(t)
+        
+        # Apply amplitudes to each channel
+        channel_data = amplitude_array[0][1:]
+        for i, amplitude in enumerate(channel_data):
+            if i < len(MAPPING):
+                outdata[frames_processed:frames_processed + this_frames, MAPPING[i]] = sine_wave * amplitude
+        
+        # Update counters and check if we're done with current amplitude array
+        frames_processed += this_frames
+        amplitude_array[0][0] -= this_frames
+        
+        if amplitude_array[0][0] <= 0:
+            amplitude_array.pop(0)
+            
+    return
 
-    # Create a time index for this block
-    t = (np.arange(frames) + phase) * phase_increment
-    # Update phase for the next callback
-    phase += frames
-
-    # Create a multi-channel buffer initialized to zeros
-    out = np.zeros((frames, sd.query_devices(sd.default.device[1])['max_output_channels']), dtype=np.float32)
-
-    # Generate the sine wave and scale by amplitude for each channel
-    sine_wave = np.sin(t)
-    for i in range(len(amplitude_array)):
-        out[:, MAPPING[i]] = sine_wave * amplitude_array[i]
-
-    outdata[:] = out
 
 async def handler(websocket):
     print("Client connected.")
     global amplitude_array, df
 
-    amplitude_array = [0] * NUMBER_ACTUATORS
+    amplitude_array = []
+    duration_array = [0] * NUMBER_ACTUATORS
+
+
     async for message in websocket:
         data = json.loads(message)
         print("Received data:", data)
         # Update the global amplitude array
-        amplitude_array = data["amplitudes"]
+    
+        duration = data["duration"]*SAMPLE_RATE/1000
+        duration = int(duration)
+        amplitude_array.append([duration] + data["amplitudes"])
         timestamp = data["timestamp"]
+        device_type = data["device"]
 
         # Update the global dataframe
         new_data = pd.DataFrame([{
+            "device": device_type,
             "timestamp": timestamp,
-            "amplitudes": amplitude_array
+            "amplitudes": data["amplitudes"],
+            "duration": data["duration"],
         }])
+
         df = pd.concat([df, new_data], ignore_index=True)
         df = df[df["timestamp"] > timestamp - WINDOW_SIZE]
 
@@ -121,8 +171,7 @@ if __name__ == "__main__":
         print("Running in audio output mode.")
         with sd.OutputStream(samplerate=SAMPLE_RATE,
                             channels=sd.query_devices(sd.default.device[1])['max_output_channels'],
-                            callback=audio_callback,
-                            blocksize=1024):
+                            callback=audio_callback, blocksize=0):
             asyncio.run(main())
     else:
         print("Running in debug mode. No audio output will be generated.")
