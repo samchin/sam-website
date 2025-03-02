@@ -1,19 +1,18 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import './Absolute.css';
 import '../DeviceTypeHandler';
 
 // Default values in case environment variables are not defined
 const DEFAULT_NUM_ACTUATORS = 6;
-const DEFAULT_INITIAL_AMPLITUDE = 10;
-const DEFAULT_STEP_SIZE = 1.0;
-// Note: This variable is now used in the component
+const DEFAULT_INITIAL_AMPLITUDE = 0.5;
+const DEFAULT_STEP_SIZE = 0.1;
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
 
 // Parse environment variables with fallbacks to default values
 const NUM_ACTUATORS = process.env.REACT_APP_NUMBER_ACTUATOR ? parseInt(process.env.REACT_APP_NUMBER_ACTUATOR) : DEFAULT_NUM_ACTUATORS;
-const INITIAL_AMPLITUDE = process.env.REACT_APP_INITIAL_AMPLITUDE ? parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE) : DEFAULT_INITIAL_AMPLITUDE;
-const INITIAL_STEP_SIZE = process.env.REACT_APP_STEP_RESOLUTION ? parseFloat(process.env.REACT_APP_STEP_RESOLUTION) : DEFAULT_STEP_SIZE;
+const INITIAL_AMPLITUDE = DEFAULT_INITIAL_AMPLITUDE;
+const INITIAL_STEP_SIZE = DEFAULT_STEP_SIZE;
 const INITIAL_ERRORS_ACCEPTED = process.env.REACT_APP_REVERSAL ? parseInt(process.env.REACT_APP_REVERSAL) : DEFAULT_ERRORS_ACCEPTED;
 const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID;
 
@@ -48,9 +47,6 @@ const Experiment = () => {
   const [firstIntervalActive, setFirstIntervalActive] = useState(false);
   const [secondIntervalActive, setSecondIntervalActive] = useState(false);
   const [intervalGap, setIntervalGap] = useState(false);
-  
-  // Added state for errors accepted
-  const [errorsAccepted] = useState(INITIAL_ERRORS_ACCEPTED);
 
   const wsRef = useRef(null);
 
@@ -74,7 +70,6 @@ const Experiment = () => {
     setLastDirection(null);
     setHasBeenPlayed(false);
   };
-
   useEffect(() => {
     // Get device type from URL
     const params = new URLSearchParams(window.location.search);
@@ -86,19 +81,14 @@ const Experiment = () => {
     }
 
     setDeviceType(deviceParam.toLowerCase());
-  }, [validDeviceTypes]); // Added validDeviceTypes as a dependency
+  }, []);
 
-  // Implement two-interval forced choice paradigm - converted to useCallback
-  const handlePlay = useCallback(() => {
-    if (!experimentStarted || experimentEnded) return;
+  // Implement two-interval forced choice paradigm
+  const handlePlay = () => {
+    if (!experimentStarted || experimentEnded || hasBeenPlayed) return;
     
-    // If currently playing, don't allow replaying
-    if (firstIntervalActive || secondIntervalActive || intervalGap) return;
-    
-    // We use timestamp but only in the function scope, so no unused var warning
-    const currentTimestamp = new Date().toISOString();
-    // Same for type
-    const actionType = "PLAY_SIGNAL";
+    const timestamp = new Date().toISOString();
+    const type = "PLAY_SIGNAL";
 
     // Use the current actuator from the cycling sequence
     const actuator = currentActuatorIndex;
@@ -125,9 +115,7 @@ const Experiment = () => {
         device: deviceType,
         amplitudes: firstIntervalAmplitudes,
         timestamp: Date.now(),
-        duration: 1000,
-        messageType: actionType, // Using the actionType here
-        logTimestamp: currentTimestamp // Using the timestamp here
+        duration: 1000
       });
       wsRef.current.send(message1);
       
@@ -169,11 +157,9 @@ const Experiment = () => {
     } else {
       console.log("Websocket not connected");
     }
-  }, [experimentStarted, experimentEnded, firstIntervalActive, secondIntervalActive, 
-      intervalGap, currentActuatorIndex, currentAmplitude, stimulusInterval, 
-      off_amplitudes, deviceType]); // Added all dependencies
+  };
 
-  const handleResponse = useCallback((selectedInterval) => {
+  const handleResponse = (selectedInterval) => {
     if (!experimentStarted || experimentEnded || !hasBeenPlayed) return;
     
     // Whether the response is correct (did they identify the stimulus interval correctly?)
@@ -189,19 +175,19 @@ const Experiment = () => {
     let direction = null;
     let isReversal = false;
     
-    // MODIFIED: Apply the three-down one-up rule with reversed logic
+    // Apply the three-down one-up rule
     if (correct) {
       // Increment consecutive correct counter
       const newConsecutiveCorrect = consecutiveCorrect + 1;
       setConsecutiveCorrect(newConsecutiveCorrect);
       
-      // If three consecutive correct, increase amplitude (opposite of original)
+      // If three consecutive correct, decrease amplitude
       if (newConsecutiveCorrect >= 3) {
-        const newAmplitude = Math.round((currentAmplitude + stepSize) * 10) / 10; // Changed from - to +
-        direction = 'up'; // Changed from 'down' to 'up'
+        const newAmplitude = Math.round((currentAmplitude - stepSize) * 10) / 10;
+        direction = 'down';
         
         // Check if this is a reversal
-        if (lastDirection === 'down') { // Changed from 'up' to 'down'
+        if (lastDirection === 'up') {
           isReversal = true;
           setReversalPoints(prev => prev + 1);
         }
@@ -210,18 +196,18 @@ const Experiment = () => {
         setCurrentAmplitude(newAmplitude);
         setConsecutiveCorrect(0);
         
-        // Update best amplitude if appropriate - note: now looking for higher value
-        if (newAmplitude > bestAmplitude) { // Changed from < to >
+        // Update best amplitude if appropriate
+        if (newAmplitude < bestAmplitude) {
           setBestAmplitude(newAmplitude);
         }
       }
     } else {
-      // If incorrect, decrease amplitude (opposite of original)
-      const newAmplitude = Math.round((currentAmplitude - stepSize) * 10) / 10; // Changed from + to -
-      direction = 'down'; // Changed from 'up' to 'down'
+      // If incorrect, increase amplitude
+      const newAmplitude = Math.round((currentAmplitude + stepSize) * 10) / 10;
+      direction = 'up';
       
       // Check if this is a reversal
-      if (lastDirection === 'up') { // Changed from 'down' to 'up'
+      if (lastDirection === 'down') {
         isReversal = true;
         setReversalPoints(prev => prev + 1);
       }
@@ -230,8 +216,6 @@ const Experiment = () => {
       setCurrentAmplitude(newAmplitude);
       setConsecutiveCorrect(0);
     }
-    
-    // The rest of the function remains the same
     
     // Update last direction if we had a direction change
     if (direction) {
@@ -250,7 +234,7 @@ const Experiment = () => {
       reversalNumber: isReversal ? reversalPoints + 1 : reversalPoints,
       type,
       device: deviceType,
-      actuator: currentActuatorIndex
+      actuator: currentActuatorIndex  // Add the current actuator to the trial data
     }]);
     
     // Randomly determine stimulus interval for next trial (0 = first, 1 = second)
@@ -275,27 +259,11 @@ const Experiment = () => {
         setConsecutiveCorrect(0);
         setReversalPoints(0);
         setLastDirection(null);
-        
-        // Automatically start next trial after a short delay
-        setTimeout(() => {
-          handlePlay();
-        }, 1000);
       }
-    } else {
-      // Reset the hasBeenPlayed state
-      setHasBeenPlayed(false);
-      
-      // Automatically start next trial after a short delay
-      setTimeout(() => {
-        handlePlay();
-      }, 1000);
     }
-  }, [
-    experimentStarted, experimentEnded, hasBeenPlayed, stimulusInterval,
-    consecutiveCorrect, lastDirection, currentAmplitude, stepSize,
-    bestAmplitude, reversalPoints, deviceType, currentActuatorIndex,
-    NUM_ACTUATORS, startAmplitude, handlePlay
-  ]);
+    
+    setHasBeenPlayed(false);
+  };
 
   // Add keyboard event listener
   useEffect(() => {
@@ -328,7 +296,7 @@ const Experiment = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [experimentStarted, experimentEnded, hasBeenPlayed, handlePlay, handleResponse]); // Added handlePlay and handleResponse as dependencies
+  }, [experimentStarted, experimentEnded, hasBeenPlayed, stimulusInterval]);
 
   useEffect(() => {
     let ws;
@@ -452,8 +420,8 @@ const Experiment = () => {
     });
 
     //save on another page the project configuration
-    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "Total Reversals", "Errors Accepted"];
-    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, reversalPoints, errorsAccepted]];
+    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "Total Reversals"];
+    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, reversalPoints]];
 
     csvContent += "\n\n" + headers2.join(",") + "\n";
     rows2.forEach(r => {
@@ -498,12 +466,11 @@ const Experiment = () => {
         </div>
       
         <div className="controlRow">
-          {experimentStarted && !experimentEnded && (
+          {experimentStarted && !experimentEnded && !hasBeenPlayed && !firstIntervalActive && !secondIntervalActive && !intervalGap && (
             <button 
               className="playButton" 
-              onClick={handlePlay}
-              disabled={firstIntervalActive || secondIntervalActive || intervalGap}>
-              {hasBeenPlayed ? "Replay" : "Play"} <span className="keyboardShortcut">(Space)</span>
+              onClick={handlePlay}>
+              Play <span className="keyboardShortcut">(Space)</span>
             </button>
           )}
 
@@ -646,9 +613,6 @@ const Experiment = () => {
             <div className="inputGroup">
               <label>Current Actuator: {currentActuatorIndex}</label>
             </div>
-            <div className="inputGroup">
-              <label>Errors Accepted: {errorsAccepted}</label>
-            </div>
             {!experimentStarted && (
               <button className="startButton" onClick={handleStart}>Start</button>
             )}
@@ -656,7 +620,6 @@ const Experiment = () => {
         </div>
       )}
       
-    
     </div>
   );
 };
