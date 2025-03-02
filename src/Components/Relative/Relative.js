@@ -1,30 +1,40 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import './Absolute.css';
+import './Relative.css';
 import '../DeviceTypeHandler';
 
 // Default values in case environment variables are not defined
 const DEFAULT_NUM_ACTUATORS = 6;
-const DEFAULT_INITIAL_AMPLITUDE = 10;
-const DEFAULT_STEP_SIZE = 1.0;
-// Note: This variable is now used in the component
+const DEFAULT_REFERENCE_AMPLITUDE = 10; // Reference amplitude
+const DEFAULT_INITIAL_DIFFERENCE = 5;   // Initial difference between reference and test
+const DEFAULT_STEP_SIZE = 0.33;         // Step size in dB as specified
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
 
 // Parse environment variables with fallbacks to default values
 const NUM_ACTUATORS = process.env.REACT_APP_NUMBER_ACTUATOR ? parseInt(process.env.REACT_APP_NUMBER_ACTUATOR) : DEFAULT_NUM_ACTUATORS;
-const INITIAL_AMPLITUDE = process.env.REACT_APP_INITIAL_AMPLITUDE ? parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE) : DEFAULT_INITIAL_AMPLITUDE;
+const REFERENCE_AMPLITUDE = process.env.REACT_APP_REFERENCE_AMPLITUDE ? parseInt(process.env.REACT_APP_REFERENCE_AMPLITUDE) : DEFAULT_REFERENCE_AMPLITUDE;
+const INITIAL_DIFFERENCE = process.env.REACT_APP_INITIAL_DIFFERENCE ? parseInt(process.env.REACT_APP_INITIAL_DIFFERENCE) : DEFAULT_INITIAL_DIFFERENCE;
 const INITIAL_STEP_SIZE = process.env.REACT_APP_STEP_RESOLUTION ? parseFloat(process.env.REACT_APP_STEP_RESOLUTION) : DEFAULT_STEP_SIZE;
 const INITIAL_ERRORS_ACCEPTED = process.env.REACT_APP_REVERSAL ? parseInt(process.env.REACT_APP_REVERSAL) : DEFAULT_ERRORS_ACCEPTED;
 const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID;
 
-const Experiment = () => {
+// Helper function to convert between linear amplitude and dB
+const linearToDB = (linear) => 20 * Math.log10(linear);
+const dBToLinear = (dB) => Math.pow(10, dB / 20);
 
+const Experiment = () => {
   const [deviceType, setDeviceType] = useState('');
   const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
   const off_amplitudes = [0,0,0,0,0,0];
   const [examinatorMode, setExaminatorMode] = useState(true);
-  const [startAmplitude, setStartAmplitude] = useState(INITIAL_AMPLITUDE);
+  
+  // State for reference stimulus
+  const [referenceAmplitude, setReferenceAmplitude] = useState(REFERENCE_AMPLITUDE);
+  
+  // State for difference threshold
+  const [currentDifference, setCurrentDifference] = useState(INITIAL_DIFFERENCE);
   const [stepSize, setStepSize] = useState(INITIAL_STEP_SIZE);
+  
   // Track current actuator for cycling through all actuators
   const [selectedActuator, setSelectedActuator] = useState(0);
   const [currentActuatorIndex, setCurrentActuatorIndex] = useState(0);
@@ -34,14 +44,13 @@ const Experiment = () => {
   const [reversalPoints, setReversalPoints] = useState(0);
   const [lastDirection, setLastDirection] = useState(null); // 'up' or 'down'
 
-  const [bestAmplitude, setBestAmplitude] = useState(startAmplitude);
-  const [currentAmplitude, setCurrentAmplitude] = useState(startAmplitude);
-  const [trialData, setTrialData] = useState([]); // {amplitude, correct, timestamp} objects
+  const [bestDifference, setBestDifference] = useState(INITIAL_DIFFERENCE);
+  const [trialData, setTrialData] = useState([]); // {referenceAmplitude, testAmplitude, difference, correct, timestamp} objects
   const [experimentStarted, setExperimentStarted] = useState(false);
   const [experimentEnded, setExperimentEnded] = useState(false);
   
-  // Stimulus interval (first or second)
-  const [stimulusInterval, setStimulusInterval] = useState(null); // 0 = first, 1 = second
+  // Interval where the higher amplitude stimulus is presented (reference is always the same)
+  const [higherInterval, setHigherInterval] = useState(null); // 0 = first, 1 = second
   const [hasBeenPlayed, setHasBeenPlayed] = useState(false);
   
   // Visual indicators for intervals
@@ -51,23 +60,30 @@ const Experiment = () => {
   
   // Added state for errors accepted
   const [errorsAccepted] = useState(INITIAL_ERRORS_ACCEPTED);
+  
+  // Track if we should present equal stimuli (for false positive testing)
+  const [equalStimuli, setEqualStimuli] = useState(false);
 
   const wsRef = useRef(null);
 
   // Handle start of experiment
   const handleStart = () => {
-    // Randomly determine if stimulus is in first or second interval
+    // Randomly determine if higher stimulus is in first or second interval
     const interval = Math.random() < 0.5 ? 0 : 1; // 0 = first interval, 1 = second interval
-    setStimulusInterval(interval);
+    setHigherInterval(interval);
+    
+    // Decide if this is a trial with equal stimuli (10% chance as per requirement)
+    const isEqualStimuliTrial = Math.random() < 0.1;
+    setEqualStimuli(isEqualStimuliTrial);
 
     // Start with the first actuator
     setCurrentActuatorIndex(0);
     
-    setBestAmplitude(startAmplitude);
+    setBestDifference(INITIAL_DIFFERENCE);
     setExperimentStarted(true);
     setExperimentEnded(false);
     setExaminatorMode(false);
-    setCurrentAmplitude(startAmplitude);
+    setCurrentDifference(INITIAL_DIFFERENCE);
     setTrialData([]);
     setConsecutiveCorrect(0);
     setReversalPoints(0);
@@ -86,7 +102,7 @@ const Experiment = () => {
     }
 
     setDeviceType(deviceParam.toLowerCase());
-  }, [validDeviceTypes]); // Added validDeviceTypes as a dependency
+  }, [validDeviceTypes]);
 
   // Implement two-interval forced choice paradigm - converted to useCallback
   const handlePlay = useCallback(() => {
@@ -95,39 +111,42 @@ const Experiment = () => {
     // If currently playing, don't allow replaying
     if (firstIntervalActive || secondIntervalActive || intervalGap) return;
     
-    // We use timestamp but only in the function scope, so no unused var warning
     const currentTimestamp = new Date().toISOString();
-    // Same for type
     const actionType = "PLAY_SIGNAL";
 
     // Use the current actuator from the cycling sequence
     const actuator = currentActuatorIndex;
     
-    // Create stimulus amplitudes array - only the selected actuator has amplitude
-    const stimulusAmplitudes = Array.from(
+    // Calculate test amplitude based on reference and difference
+    // In equal stimuli trials, test = reference
+    const testAmplitude = equalStimuli ? referenceAmplitude : referenceAmplitude + currentDifference;
+    
+    // Create reference and test stimulus amplitudes arrays - only the selected actuator has amplitude
+    const referenceAmplitudes = Array.from(
       { length: NUM_ACTUATORS }, 
-      (_, i) => i === actuator ? currentAmplitude : 0
+      (_, i) => i === actuator ? referenceAmplitude : 0
+    );
+    
+    const testAmplitudes = Array.from(
+      { length: NUM_ACTUATORS }, 
+      (_, i) => i === actuator ? testAmplitude : 0
     );
     
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      // Sequence of messages to implement the two intervals:
-      // 1. First interval (with or without stimulus)
-      // 2. 200ms pause
-      // 3. Second interval (with or without stimulus)
-      
       // First interval
       setFirstIntervalActive(true);
       setSecondIntervalActive(false);
       setIntervalGap(false);
       
-      let firstIntervalAmplitudes = stimulusInterval === 0 ? stimulusAmplitudes : off_amplitudes;
+      // Determine which amplitude to use in which interval
+      let firstIntervalAmplitudes = higherInterval === 0 ? testAmplitudes : referenceAmplitudes;
       let message1 = JSON.stringify({
         device: deviceType,
         amplitudes: firstIntervalAmplitudes,
         timestamp: Date.now(),
         duration: 1000,
-        messageType: actionType, // Using the actionType here
-        logTimestamp: currentTimestamp // Using the timestamp here
+        messageType: actionType,
+        logTimestamp: currentTimestamp
       });
       wsRef.current.send(message1);
       
@@ -150,7 +169,7 @@ const Experiment = () => {
           setIntervalGap(false);
           setSecondIntervalActive(true);
           
-          let secondIntervalAmplitudes = stimulusInterval === 1 ? stimulusAmplitudes : off_amplitudes;
+          let secondIntervalAmplitudes = higherInterval === 1 ? testAmplitudes : referenceAmplitudes;
           let message3 = JSON.stringify({
             device: deviceType,
             amplitudes: secondIntervalAmplitudes,
@@ -170,79 +189,102 @@ const Experiment = () => {
       console.log("Websocket not connected");
     }
   }, [experimentStarted, experimentEnded, firstIntervalActive, secondIntervalActive, 
-      intervalGap, currentActuatorIndex, currentAmplitude, stimulusInterval, 
-      off_amplitudes, deviceType]); // Added all dependencies
+      intervalGap, currentActuatorIndex, currentDifference, higherInterval, 
+      referenceAmplitude, equalStimuli, off_amplitudes, deviceType]);
 
-  const handleResponse = useCallback((selectedInterval) => {
+  const handleResponse = useCallback((response) => {
     if (!experimentStarted || experimentEnded || !hasBeenPlayed) return;
     
-    // Whether the response is correct (did they identify the stimulus interval correctly?)
-    const correct = (selectedInterval === stimulusInterval);
-    const timestamp = new Date().toISOString();
-    const type = "GUESS";
+    // For relative threshold, response is whether stimuli are different
+    // true = "Different", false = "Same"
     
-    console.log("Response:", selectedInterval === 0 ? "First interval" : "Second interval");
-    console.log("Actual stimulus:", stimulusInterval === 0 ? "First interval" : "Second interval");
+    // Determine correct answer based on equal stimuli flag
+    const correctAnswer = !equalStimuli; // If stimuli are equal, correct answer is "Same" (false)
+    
+    // Whether the response is correct
+    const correct = (response === correctAnswer);
+    const timestamp = new Date().toISOString();
+    const type = "RESPONSE";
+    
+    console.log("Response:", response ? "Different" : "Same");
+    console.log("Correct Answer:", correctAnswer ? "Different" : "Same");
     console.log("Correct:", correct);
     
     // Determine if we need to change direction (up/down) for tracking reversals
     let direction = null;
     let isReversal = false;
     
-    // MODIFIED: Apply the three-down one-up rule with reversed logic
-    if (correct) {
-      // Increment consecutive correct counter
-      const newConsecutiveCorrect = consecutiveCorrect + 1;
-      setConsecutiveCorrect(newConsecutiveCorrect);
-      
-      // If three consecutive correct, increase amplitude (opposite of original)
-      if (newConsecutiveCorrect >= 3) {
-        const newAmplitude = Math.round((currentAmplitude + stepSize) * 10) / 10; // Changed from - to +
-        direction = 'up'; // Changed from 'down' to 'up'
+    // For non-equal stimuli trials, apply three-down-one-up rule
+    if (!equalStimuli) {
+      if (correct) {
+        // Increment consecutive correct counter
+        const newConsecutiveCorrect = consecutiveCorrect + 1;
+        setConsecutiveCorrect(newConsecutiveCorrect);
+        
+        // If three consecutive correct, decrease difference
+        if (newConsecutiveCorrect >= 3) {
+          // Convert to dB, reduce by step size, convert back to linear
+          const currentDifferenceDB = linearToDB(currentDifference);
+          const newDifferenceDB = currentDifferenceDB - stepSize;
+          const newDifference = Math.round(dBToLinear(newDifferenceDB) * 10) / 10;
+          
+          direction = 'down';
+          
+          // Check if this is a reversal
+          if (lastDirection === 'up') {
+            isReversal = true;
+            setReversalPoints(prev => prev + 1);
+          }
+          
+          // Update difference and reset consecutive correct counter
+          setCurrentDifference(newDifference);
+          setConsecutiveCorrect(0);
+          
+          // Update best difference if appropriate
+          if (newDifference < bestDifference) {
+            setBestDifference(newDifference);
+          }
+        }
+      } else {
+        // If incorrect, increase difference
+        // Convert to dB, increase by step size, convert back to linear
+        const currentDifferenceDB = linearToDB(currentDifference);
+        const newDifferenceDB = currentDifferenceDB + stepSize;
+        const newDifference = Math.round(dBToLinear(newDifferenceDB) * 10) / 10;
+        
+        direction = 'up';
         
         // Check if this is a reversal
-        if (lastDirection === 'down') { // Changed from 'up' to 'down'
+        if (lastDirection === 'down') {
           isReversal = true;
           setReversalPoints(prev => prev + 1);
         }
         
-        // Update amplitude and reset consecutive correct counter
-        setCurrentAmplitude(newAmplitude);
+        // Update difference and reset consecutive correct counter
+        setCurrentDifference(newDifference);
         setConsecutiveCorrect(0);
-        
-        // Update best amplitude if appropriate - note: now looking for higher value
-        if (newAmplitude > bestAmplitude) { // Changed from < to >
-          setBestAmplitude(newAmplitude);
-        }
       }
     } else {
-      // If incorrect, decrease amplitude (opposite of original)
-      const newAmplitude = Math.round((currentAmplitude - stepSize) * 10) / 10; // Changed from + to -
-      direction = 'down'; // Changed from 'up' to 'down'
-      
-      // Check if this is a reversal
-      if (lastDirection === 'up') { // Changed from 'down' to 'up'
-        isReversal = true;
-        setReversalPoints(prev => prev + 1);
-      }
-      
-      // Update amplitude and reset consecutive correct counter
-      setCurrentAmplitude(newAmplitude);
-      setConsecutiveCorrect(0);
+      // For equal stimuli trials, we don't adjust the difference
+      // Just record data for false positive analysis
+      console.log("Equal stimuli trial - no adjustment to difference");
     }
-    
-    // The rest of the function remains the same
     
     // Update last direction if we had a direction change
     if (direction) {
       setLastDirection(direction);
     }
     
+    // Calculate test amplitude (accounting for equal stimuli trials)
+    const testAmplitude = equalStimuli ? referenceAmplitude : referenceAmplitude + currentDifference;
+    
     // Record trial data with actuator information
     setTrialData(prev => [...prev, { 
-      amplitude: currentAmplitude, 
-      stimulusInterval, 
-      selectedInterval,
+      referenceAmplitude, 
+      testAmplitude,
+      difference: currentDifference,
+      equalStimuli,
+      response, // true = "Different", false = "Same"
       correct, 
       timestamp,
       isReversal,
@@ -253,12 +295,16 @@ const Experiment = () => {
       actuator: currentActuatorIndex
     }]);
     
-    // Randomly determine stimulus interval for next trial (0 = first, 1 = second)
+    // Randomly determine higher interval for next trial (0 = first, 1 = second)
     const nextInterval = Math.random() < 0.5 ? 0 : 1;
-    setStimulusInterval(nextInterval);
+    setHigherInterval(nextInterval);
     
-    // Check if we've reached 6 reversal points
-    if (reversalPoints + (isReversal ? 1 : 0) >= 6) {
+    // Decide if next trial should have equal stimuli (10% chance)
+    const isEqualStimuliTrial = Math.random() < 0.1;
+    setEqualStimuli(isEqualStimuliTrial);
+    
+    // Check if we've reached 6 reversal points (only for non-equal stimuli trials)
+    if (!equalStimuli && reversalPoints + (isReversal ? 1 : 0) >= 6) {
       // Cycle to the next actuator
       const nextActuatorIndex = (currentActuatorIndex + 1) % NUM_ACTUATORS;
       setCurrentActuatorIndex(nextActuatorIndex);
@@ -271,7 +317,7 @@ const Experiment = () => {
         // Otherwise, start a new staircase with the next actuator
         alert(`Staircase for actuator ${currentActuatorIndex} completed with 6 reversal points. Starting actuator ${nextActuatorIndex}.`);
         setSelectedActuator(nextActuatorIndex);
-        setCurrentAmplitude(startAmplitude);
+        setCurrentDifference(INITIAL_DIFFERENCE);
         setConsecutiveCorrect(0);
         setReversalPoints(0);
         setLastDirection(null);
@@ -291,17 +337,17 @@ const Experiment = () => {
       }, 1000);
     }
   }, [
-    experimentStarted, experimentEnded, hasBeenPlayed, stimulusInterval,
-    consecutiveCorrect, lastDirection, currentAmplitude, stepSize,
-    bestAmplitude, reversalPoints, deviceType, currentActuatorIndex,
-    NUM_ACTUATORS, startAmplitude, handlePlay
+    experimentStarted, experimentEnded, hasBeenPlayed, higherInterval,
+    consecutiveCorrect, lastDirection, currentDifference, stepSize,
+    bestDifference, reversalPoints, deviceType, currentActuatorIndex,
+    NUM_ACTUATORS, handlePlay, equalStimuli, referenceAmplitude
   ]);
 
   // Add keyboard event listener
   useEffect(() => {
     const handleKeyPress = (event) => {
       // Prevent default actions for these keys
-      if (event.key === ' ' || event.key === '[' || event.key === ']') {
+      if (event.key === ' ' || event.key === 's' || event.key === 'd') {
         event.preventDefault();
       }
       
@@ -310,14 +356,14 @@ const Experiment = () => {
         handlePlay();
       }
       
-      // Handle [ key press - First Interval
-      if (event.key === '[' && experimentStarted && !experimentEnded && hasBeenPlayed) {
-        handleResponse(0);
+      // Handle 's' key press - "Same" response
+      if (event.key === 's' && experimentStarted && !experimentEnded && hasBeenPlayed) {
+        handleResponse(false);
       }
       
-      // Handle ] key press - Second Interval
-      if (event.key === ']' && experimentStarted && !experimentEnded && hasBeenPlayed) {
-        handleResponse(1);
+      // Handle 'd' key press - "Different" response
+      if (event.key === 'd' && experimentStarted && !experimentEnded && hasBeenPlayed) {
+        handleResponse(true);
       }
     };
     
@@ -328,7 +374,7 @@ const Experiment = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [experimentStarted, experimentEnded, hasBeenPlayed, handlePlay, handleResponse]); // Added handlePlay and handleResponse as dependencies
+  }, [experimentStarted, experimentEnded, hasBeenPlayed, handlePlay, handleResponse]);
 
   useEffect(() => {
     let ws;
@@ -393,13 +439,13 @@ const Experiment = () => {
   const plotHeight = 200;
   const padding = 30;
 
-  // Calculate maximum and minimum amplitude
-  const maxAmplitude = trialData.length > 0
-    ? Math.max(...trialData.map(t => t.amplitude)) + 2 * stepSize
-    : startAmplitude + stepSize;
+  // Calculate maximum and minimum difference
+  const maxDifference = trialData.length > 0
+    ? Math.max(...trialData.map(t => t.difference)) + 2 * dBToLinear(stepSize)
+    : INITIAL_DIFFERENCE + dBToLinear(stepSize);
 
-  const minAmplitude = trialData.length > 0
-    ? Math.min(...trialData.map(t => t.amplitude)) - 2 * stepSize
+  const minDifference = trialData.length > 0
+    ? Math.min(...trialData.map(t => t.difference)) - 2 * dBToLinear(stepSize)
     : 0;
 
   // Generate coordinates for the plot
@@ -408,42 +454,49 @@ const Experiment = () => {
       ? padding + (i / (trialData.length - 1)) * (plotWidth - 2 * padding)
       : plotWidth / 2;
     const y = trialData.length > 1
-      ? padding + ((maxAmplitude - t.amplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding)
+      ? padding + ((maxDifference - t.difference) / (maxDifference - minDifference)) * (plotHeight - 2 * padding)
       : plotHeight / 2;
 
-    return { x, y, correct: t.correct };
+    return { x, y, correct: t.correct, equalStimuli: t.equalStimuli };
   });
 
-  // String for polyline
-  const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+  // String for polyline - exclude equal stimuli trials from the line
+  const polylinePoints = points
+    .filter((_, i) => !trialData[i].equalStimuli)
+    .map(p => `${p.x},${p.y}`)
+    .join(' ');
 
   const handleSaveCSV = () => {
     // Convert trialData to CSV
     // CSV Headers
     const headers = [
       "Timestamp", 
-      "Amplitude", 
-      "StimulusInterval", 
-      "SelectedInterval",
+      "ReferenceAmplitude",
+      "TestAmplitude",
+      "Difference", 
+      "EqualStimuli",
+      "Response", // true = "Different", false = "Same"
       "Correct", 
       "ConsecutiveCorrect",
       "IsReversal",
       "ReversalNumber",
       "Type",
-      "Actuator"  // Add Actuator column to CSV headers
+      "Actuator"
     ];
     
     const rows = trialData.map(t => [
       t.timestamp, 
-      t.amplitude, 
-      t.stimulusInterval === 0 ? "First" : "Second", 
-      t.selectedInterval === 0 ? "First" : "Second",
+      t.referenceAmplitude,
+      t.testAmplitude,
+      t.difference,
+      t.equalStimuli,
+      t.response ? "Different" : "Same",
       t.correct,
       t.consecutiveCorrect,
       t.isReversal || false,
       t.reversalNumber || "",
       t.type,
-      t.actuator  // Add actuator value to CSV rows
+      t.actuator
     ]);
 
     let csvContent = headers.join(",") + "\n";
@@ -451,23 +504,21 @@ const Experiment = () => {
       csvContent += r.join(",") + "\n";
     });
 
-    //save on another page the project configuration
-    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "Total Reversals", "Errors Accepted"];
-    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, reversalPoints, errorsAccepted]];
+    // Save experiment configuration
+    const headers2 = ["Reference Amplitude", "Initial Difference", "Step Size (dB)", "Best Difference", "Total Reversals", "Errors Accepted"];
+    const rows2 = [[referenceAmplitude, INITIAL_DIFFERENCE, stepSize, bestDifference, reversalPoints, errorsAccepted]];
 
     csvContent += "\n\n" + headers2.join(",") + "\n";
     rows2.forEach(r => {
       csvContent += r.join(",") + "\n";
     });
 
-
     // Create a blob and trigger download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "absolute_threshold_data_" + String(PID) + ".csv";
-    console.log(String(PID))
+    a.download = "relative_threshold_data_" + String(PID) + ".csv";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -511,12 +562,12 @@ const Experiment = () => {
             <div className="responseButtonsContainer">
               {hasBeenPlayed && (
                 <div className="responseButtons">
-                  <p>Which interval contained the stimulus?</p>
-                  <button className="responseButton" onClick={() => handleResponse(0)}>
-                    First Interval <span className="keyboardShortcut">([)</span>
+                  <p>Were the vibrations the same or different?</p>
+                  <button className="responseButton" onClick={() => handleResponse(false)}>
+                    Same <span className="keyboardShortcut">(S)</span>
                   </button>
-                  <button className="responseButton" onClick={() => handleResponse(1)}>
-                    Second Interval <span className="keyboardShortcut">(])</span>
+                  <button className="responseButton" onClick={() => handleResponse(true)}>
+                    Different <span className="keyboardShortcut">(D)</span>
                   </button>
                 </div>
               )}
@@ -532,16 +583,14 @@ const Experiment = () => {
         </div>
       </div>
 
-      {/* Keyboard shortcuts help removed */}
-
       {examinatorMode && (
         <div className="examinator">
           <div className="plotArea">
-            <h3>Amplitude Response Plot</h3>
+            <h3>Difference Threshold Plot</h3>
             <div className="plot">
               <svg width={plotWidth} height={plotHeight} style={{ border: '10px solid #ccc' }}>
-                {/* Draw polyline if we have at least two points */}
-                {points.length > 1 && (
+                {/* Draw polyline if we have at least two points (excluding equal stimuli trials) */}
+                {points.filter((_, i) => !trialData[i].equalStimuli).length > 1 && (
                   <polyline
                     points={polylinePoints}
                     fill="none"
@@ -556,40 +605,41 @@ const Experiment = () => {
                     cx={p.x}
                     cy={p.y}
                     r={4}
-                    fill={p.correct ? 'green' : 'red'}
+                    // Use different colors for equal stimuli trials
+                    fill={trialData[i].equalStimuli ? 'purple' : (p.correct ? 'green' : 'red')}
                     stroke="#000"
                     strokeWidth="1"
                   >
-                    <title>{`Trial ${i + 1}: Amp=${trialData[i].amplitude}, ${p.correct ? 'Correct' : 'Incorrect'}`}</title>
+                    <title>{`Trial ${i + 1}: ${trialData[i].equalStimuli ? 'Equal Stimuli' : `Diff=${trialData[i].difference}`}, ${p.correct ? 'Correct' : 'Incorrect'}`}</title>
                   </circle>
                 ))}
-                {/* Add a horizontal line for best amplitude */}
+                {/* Add a horizontal line for best difference */}
                 {trialData.length > 0 && (
                   <line
                     x1={padding}
                     y1={
-                      padding + ((maxAmplitude - bestAmplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding)
+                      padding + ((maxDifference - bestDifference) / (maxDifference - minDifference)) * (plotHeight - 2 * padding)
                     }
                     x2={plotWidth - padding}
                     y2={
-                      padding + ((maxAmplitude - bestAmplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding)
+                      padding + ((maxDifference - bestDifference) / (maxDifference - minDifference)) * (plotHeight - 2 * padding)
                     }
                     stroke="orange"
                     strokeWidth="2"
                     strokeDasharray="5,5"
                   />
                 )}
-                {/* Add text for best amplitude */}
+                {/* Add text for best difference */}
                 {trialData.length > 0 && (
                   <text
                     x={padding}
                     y={
-                      padding + ((maxAmplitude - bestAmplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding) - 10
+                      padding + ((maxDifference - bestDifference) / (maxDifference - minDifference)) * (plotHeight - 2 * padding) - 10
                     }
                     fill="orange"
                     fontSize="12"
                   >
-                    Best Amplitude: {bestAmplitude}
+                    Best Difference: {bestDifference}
                   </text>
                 )}
                 {/* Add text for reversal points */}
@@ -616,16 +666,25 @@ const Experiment = () => {
           <div className="examinatorPanel">
             <h2>Examinator Mode</h2>
             <div className="inputGroup">
-              <label>Start Amplitude:</label>
+              <label>Reference Amplitude:</label>
               <input
                 type="number"
                 step="0.01"
-                value={startAmplitude}
-                onChange={e => setStartAmplitude(parseFloat(e.target.value))}
+                value={referenceAmplitude}
+                onChange={e => setReferenceAmplitude(parseFloat(e.target.value))}
               />
             </div>
             <div className="inputGroup">
-              <label>Step:</label>
+              <label>Initial Difference:</label>
+              <input
+                type="number"
+                step="0.01"
+                value={currentDifference}
+                onChange={e => setCurrentDifference(parseFloat(e.target.value))}
+              />
+            </div>
+            <div className="inputGroup">
+              <label>Step Size (dB):</label>
               <input
                 type="number"
                 step="0.01"
@@ -655,8 +714,6 @@ const Experiment = () => {
           </div>
         </div>
       )}
-      
-    
     </div>
   );
 };

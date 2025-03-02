@@ -1,0 +1,234 @@
+.container {
+    font-family: sans-serif;
+    position: relative;
+    padding: 20px;
+    background: #f0f0f0;
+    height: 100vh;
+}
+
+.examinatorToggle {
+    position: absolute;
+    top: 50px;
+    right: 20px;
+    padding: 10px;
+    background: #444;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.examinatorPanel {
+    position: absolute;
+    top: 100px;
+    right: 50px;
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.inputGroup {
+    display: flex;
+    margin: 10px 0;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.startButton {
+    margin-top: 20px;
+    padding: 10px;
+    background: #008CBA;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.experimentArea {
+    margin-top: 100px;
+    padding: 20px;
+    background: #eee;
+    border-radius: 5px;
+}
+
+.controlRow {
+    display: flex;
+    gap: 20px; /* Increased gap for more spacing between buttons */
+    margin-bottom: 20px;
+}
+
+.playButton {
+    padding: 10px 20px;
+    font-size: 16px;
+    background: #4CAF50;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.responseButton {
+    padding: 10px 20px;
+    font-size: 16px;
+    background: #2196F3;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.plotArea {
+    position: relative;
+    height: 300px;
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.plot {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.playButton {
+    display: inline-block;
+    padding: 1em 2em;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #a7b6a7 0%, #5b615b 100%);
+    border: none;
+    border-radius: 0.5em;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    width: 200px;
+  }
+  
+
+.responseButton {
+    display: inline-block;
+    padding: 1em 2em;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, #4ab74a 0%, #62da5a 100%);
+    border: none;
+    border-radius: 0.5em;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    width: 200px;
+}
+
+  
+.playButton:hover, .responseButton:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
+}
+
+.responseButton:last-of-type {
+    background: linear-gradient(135deg,  #62da5a 0%, #bdbdbd 100%);
+    color: #fff;
+}
+
+.responseButton:last-of-type:hover {
+    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
+    transform: scale(1.05);
+}
+
+
+.controlRow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.playButton {
+    margin-bottom: 20px; /* Add space between Play and the other buttons */
+}
+
+.device-type {
+    background: #f0f4f8;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #2d3748;
+    display: inline-flex;
+    align-items: center;
+    margin: 5px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  
+  .device-type::before {
+    content: '•';
+    color: #4299e1;
+    margin-right: 4px;
+  }
+
+.intervalIndicators {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.intervalIndicator {
+    width: 120px;
+    height: 60px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.intervalIndicator.active {
+    background-color: #4CAF50;
+    border-color: #388E3C;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.intervalGap {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.intervalGap.active {
+    background-color: #FFC107;
+    border-color: #FFA000;
+}
+
+.indicatorLabel {
+    font-weight: bold;
+    text-align: center;
+}
+
+.keyboardShortcut {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 5px;
+}
