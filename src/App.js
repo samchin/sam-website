@@ -4,7 +4,7 @@ import Home from './Components/Home/Home';
 import Circle from './Components/Circle/Circle';
 import Absolute from './Components/Absolute/Absolute';
 import Relative from './Components/Relative/Relative';
-// import Localization from './Components/Localization/Localization';
+import Localization from './Components/Localization/Localization';
 
 function App() {
   return (
@@ -14,7 +14,7 @@ function App() {
         <Route path="/circle" element={<Circle />} />
         <Route path="/absolute" element={<Absolute/>} />
         <Route path="/relative" element={<Relative/>} />
-        {/* <Route path="/localization" element={<Localization/>} /> */}
+        <Route path="/localization" element={<Localization/>} />
       </Routes>
     </Router>
   );
