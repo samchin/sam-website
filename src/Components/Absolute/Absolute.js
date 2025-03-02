@@ -4,7 +4,7 @@ import '../DeviceTypeHandler';
 
 // Default values in case environment variables are not defined
 const DEFAULT_NUM_ACTUATORS = 6;
-const DEFAULT_INITIAL_AMPLITUDE = 10;
+const DEFAULT_INITIAL_AMPLITUDE = 5;
 const DEFAULT_STEP_SIZE = 1.0;
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
