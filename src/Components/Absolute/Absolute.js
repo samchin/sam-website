@@ -6,7 +6,6 @@ import '../DeviceTypeHandler';
 const DEFAULT_NUM_ACTUATORS = 6;
 const DEFAULT_INITIAL_AMPLITUDE = 10;
 const DEFAULT_STEP_SIZE = 1.0;
-// Note: This variable is now used in the component
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
 
@@ -51,14 +50,26 @@ const Experiment = () => {
   
   // Added state for errors accepted
   const [errorsAccepted] = useState(INITIAL_ERRORS_ACCEPTED);
+  
+  // Added state for tracking if a response is being processed
+  const [isProcessingResponse, setIsProcessingResponse] = useState(false);
 
   const wsRef = useRef(null);
+  
+  // Added ref for current stimulus interval to ensure we have the latest value in callbacks
+  const stimulusIntervalRef = useRef(null);
+  
+  // Update ref whenever stimulusInterval changes
+  useEffect(() => {
+    stimulusIntervalRef.current = stimulusInterval;
+  }, [stimulusInterval]);
 
   // Handle start of experiment
   const handleStart = () => {
     // Randomly determine if stimulus is in first or second interval
     const interval = Math.random() < 0.5 ? 0 : 1; // 0 = first interval, 1 = second interval
     setStimulusInterval(interval);
+    stimulusIntervalRef.current = interval;
 
     // Start with the first actuator
     setCurrentActuatorIndex(0);
@@ -73,6 +84,7 @@ const Experiment = () => {
     setReversalPoints(0);
     setLastDirection(null);
     setHasBeenPlayed(false);
+    setIsProcessingResponse(false);
   };
 
   useEffect(() => {
@@ -86,18 +98,16 @@ const Experiment = () => {
     }
 
     setDeviceType(deviceParam.toLowerCase());
-  }, [validDeviceTypes]); // Added validDeviceTypes as a dependency
+  }, [validDeviceTypes]);
 
   // Implement two-interval forced choice paradigm - converted to useCallback
   const handlePlay = useCallback(() => {
     if (!experimentStarted || experimentEnded) return;
     
-    // If currently playing, don't allow replaying
-    if (firstIntervalActive || secondIntervalActive || intervalGap) return;
+    // If currently playing or processing a response, don't allow replaying
+    if (firstIntervalActive || secondIntervalActive || intervalGap || isProcessingResponse) return;
     
-    // We use timestamp but only in the function scope, so no unused var warning
     const currentTimestamp = new Date().toISOString();
-    // Same for type
     const actionType = "PLAY_SIGNAL";
 
     // Use the current actuator from the cycling sequence
@@ -108,6 +118,9 @@ const Experiment = () => {
       { length: NUM_ACTUATORS }, 
       (_, i) => i === actuator ? currentAmplitude : 0
     );
+    
+    // Log the current stimulus interval for debugging
+    console.log("Current stimulus interval:", stimulusIntervalRef.current === 0 ? "First" : "Second");
     
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // Sequence of messages to implement the two intervals:
@@ -120,14 +133,14 @@ const Experiment = () => {
       setSecondIntervalActive(false);
       setIntervalGap(false);
       
-      let firstIntervalAmplitudes = stimulusInterval === 0 ? stimulusAmplitudes : off_amplitudes;
+      let firstIntervalAmplitudes = stimulusIntervalRef.current === 0 ? stimulusAmplitudes : off_amplitudes;
       let message1 = JSON.stringify({
         device: deviceType,
         amplitudes: firstIntervalAmplitudes,
         timestamp: Date.now(),
         duration: 1000,
-        messageType: actionType, // Using the actionType here
-        logTimestamp: currentTimestamp // Using the timestamp here
+        messageType: actionType,
+        logTimestamp: currentTimestamp
       });
       wsRef.current.send(message1);
       
@@ -150,7 +163,7 @@ const Experiment = () => {
           setIntervalGap(false);
           setSecondIntervalActive(true);
           
-          let secondIntervalAmplitudes = stimulusInterval === 1 ? stimulusAmplitudes : off_amplitudes;
+          let secondIntervalAmplitudes = stimulusIntervalRef.current === 1 ? stimulusAmplitudes : off_amplitudes;
           let message3 = JSON.stringify({
             device: deviceType,
             amplitudes: secondIntervalAmplitudes,
@@ -169,20 +182,35 @@ const Experiment = () => {
     } else {
       console.log("Websocket not connected");
     }
-  }, [experimentStarted, experimentEnded, firstIntervalActive, secondIntervalActive, 
-      intervalGap, currentActuatorIndex, currentAmplitude, stimulusInterval, 
-      off_amplitudes, deviceType]); // Added all dependencies
+  }, [
+    experimentStarted, 
+    experimentEnded, 
+    firstIntervalActive, 
+    secondIntervalActive, 
+    intervalGap, 
+    currentActuatorIndex, 
+    currentAmplitude, 
+    off_amplitudes, 
+    deviceType,
+    isProcessingResponse
+  ]);
 
   const handleResponse = useCallback((selectedInterval) => {
-    if (!experimentStarted || experimentEnded || !hasBeenPlayed) return;
+    if (!experimentStarted || experimentEnded || !hasBeenPlayed || isProcessingResponse) return;
+    
+    // Set processing flag to prevent multiple responses
+    setIsProcessingResponse(true);
+    
+    // Get a stable reference to the current stimulus interval
+    const currentStimulusInterval = stimulusIntervalRef.current;
     
     // Whether the response is correct (did they identify the stimulus interval correctly?)
-    const correct = (selectedInterval === stimulusInterval);
+    const correct = (selectedInterval === currentStimulusInterval);
     const timestamp = new Date().toISOString();
     const type = "GUESS";
     
     console.log("Response:", selectedInterval === 0 ? "First interval" : "Second interval");
-    console.log("Actual stimulus:", stimulusInterval === 0 ? "First interval" : "Second interval");
+    console.log("Actual stimulus:", currentStimulusInterval === 0 ? "First interval" : "Second interval");
     console.log("Correct:", correct);
     
     // Determine if we need to change direction (up/down) for tracking reversals
@@ -239,7 +267,7 @@ const Experiment = () => {
     // Record trial data with actuator information
     setTrialData(prev => [...prev, { 
       amplitude: currentAmplitude, 
-      stimulusInterval, 
+      stimulusInterval: currentStimulusInterval, 
       selectedInterval,
       correct, 
       timestamp,
@@ -248,31 +276,42 @@ const Experiment = () => {
       reversalNumber: isReversal ? reversalPoints + 1 : reversalPoints,
       type,
       device: deviceType,
-      actuator: currentActuatorIndex  // Add the current actuator to the trial data
+      actuator: currentActuatorIndex
     }]);
     
-    // Randomly determine stimulus interval for next trial (0 = first, 1 = second)
-    const nextInterval = Math.random() < 0.5 ? 0 : 1;
-    setStimulusInterval(nextInterval);
+    // Calculate the reversal count for condition checking
+    const newReversalCount = reversalPoints + (isReversal ? 1 : 0);
     
     // Check if we've reached 6 reversal points
-    if (reversalPoints + (isReversal ? 1 : 0) >= 6) {
+    if (newReversalCount >= 6) {
       // Cycle to the next actuator
       const nextActuatorIndex = (currentActuatorIndex + 1) % NUM_ACTUATORS;
-      setCurrentActuatorIndex(nextActuatorIndex);
       
       // If we've cycled through all actuators, end the experiment
       if (nextActuatorIndex === 0) {
         alert("Experiment ended. All actuators have been tested.");
         setExperimentEnded(true);
+        setIsProcessingResponse(false);
       } else {
         // Otherwise, start a new staircase with the next actuator
         alert(`Staircase for actuator ${currentActuatorIndex} completed with 6 reversal points. Starting actuator ${nextActuatorIndex}.`);
+        
+        // Update states for next actuator (in this order to avoid race conditions)
+        setCurrentActuatorIndex(nextActuatorIndex);
         setSelectedActuator(nextActuatorIndex);
         setCurrentAmplitude(startAmplitude);
         setConsecutiveCorrect(0);
         setReversalPoints(0);
         setLastDirection(null);
+        
+        // Generate a new random interval for the next actuator
+        const nextInterval = Math.random() < 0.5 ? 0 : 1;
+        setStimulusInterval(nextInterval);
+        stimulusIntervalRef.current = nextInterval;
+        
+        // Reset flags to prepare for the next trial
+        setHasBeenPlayed(false);
+        setIsProcessingResponse(false);
         
         // Automatically start next trial after a short delay
         setTimeout(() => {
@@ -280,20 +319,41 @@ const Experiment = () => {
         }, 1000);
       }
     } else {
-      // Reset the hasBeenPlayed state
-      setHasBeenPlayed(false);
+      // Generate a new random interval for the next trial
+      const nextInterval = Math.random() < 0.5 ? 0 : 1;
       
-      // Automatically start next trial after a short delay
+      // Update state and ref to ensure consistency
+      setStimulusInterval(nextInterval);
+      stimulusIntervalRef.current = nextInterval;
+      
+      // Reset flags after a short delay to ensure state updates complete
       setTimeout(() => {
-        handlePlay();
-      }, 1000);
+        setHasBeenPlayed(false);
+        setIsProcessingResponse(false);
+        
+        // Automatically start next trial after flags are reset
+        setTimeout(() => {
+          handlePlay();
+        }, 500);
+      }, 500);
     }
   }, [
-    experimentStarted, experimentEnded, hasBeenPlayed, stimulusInterval,
-    consecutiveCorrect, lastDirection, currentAmplitude, stepSize,
-    bestAmplitude, reversalPoints, deviceType, currentActuatorIndex,
-    NUM_ACTUATORS, startAmplitude, handlePlay
-  ]); // Added all dependencies including handlePlay
+    experimentStarted, 
+    experimentEnded, 
+    hasBeenPlayed,
+    consecutiveCorrect, 
+    lastDirection, 
+    currentAmplitude, 
+    stepSize,
+    bestAmplitude, 
+    reversalPoints, 
+    deviceType, 
+    currentActuatorIndex,
+    NUM_ACTUATORS, 
+    startAmplitude, 
+    handlePlay,
+    isProcessingResponse
+  ]);
 
   // Add keyboard event listener
   useEffect(() => {
@@ -304,17 +364,17 @@ const Experiment = () => {
       }
       
       // Handle space bar press - Play
-      if (event.key === ' ' && experimentStarted && !experimentEnded && !hasBeenPlayed) {
+      if (event.key === ' ' && experimentStarted && !experimentEnded && !hasBeenPlayed && !isProcessingResponse) {
         handlePlay();
       }
       
       // Handle [ key press - First Interval
-      if (event.key === '[' && experimentStarted && !experimentEnded && hasBeenPlayed) {
+      if (event.key === '[' && experimentStarted && !experimentEnded && hasBeenPlayed && !isProcessingResponse) {
         handleResponse(0);
       }
       
       // Handle ] key press - Second Interval
-      if (event.key === ']' && experimentStarted && !experimentEnded && hasBeenPlayed) {
+      if (event.key === ']' && experimentStarted && !experimentEnded && hasBeenPlayed && !isProcessingResponse) {
         handleResponse(1);
       }
     };
@@ -326,7 +386,7 @@ const Experiment = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [experimentStarted, experimentEnded, hasBeenPlayed, handlePlay, handleResponse]); // Added handlePlay and handleResponse as dependencies
+  }, [experimentStarted, experimentEnded, hasBeenPlayed, handlePlay, handleResponse, isProcessingResponse]);
 
   useEffect(() => {
     let ws;
@@ -500,14 +560,14 @@ const Experiment = () => {
             <button 
               className="playButton" 
               onClick={handlePlay}
-              disabled={firstIntervalActive || secondIntervalActive || intervalGap}>
+              disabled={firstIntervalActive || secondIntervalActive || intervalGap || isProcessingResponse}>
               {hasBeenPlayed ? "Replay" : "Play"} <span className="keyboardShortcut">(Space)</span>
             </button>
           )}
 
           {experimentStarted && !experimentEnded && (
             <div className="responseButtonsContainer">
-              {hasBeenPlayed && (
+              {hasBeenPlayed && !isProcessingResponse && (
                 <div className="responseButtons">
                   <p>Which interval contained the stimulus?</p>
                   <button className="responseButton" onClick={() => handleResponse(0)}>
@@ -516,6 +576,11 @@ const Experiment = () => {
                   <button className="responseButton" onClick={() => handleResponse(1)}>
                     Second Interval <span className="keyboardShortcut">(])</span>
                   </button>
+                </div>
+              )}
+              {isProcessingResponse && (
+                <div className="responseButtons">
+                  <p>Processing response...</p>
                 </div>
               )}
             </div>
@@ -529,8 +594,6 @@ const Experiment = () => {
           )}
         </div>
       </div>
-
-      {/* Keyboard shortcuts help removed */}
 
       {examinatorMode && (
         <div className="examinator">
@@ -653,8 +716,6 @@ const Experiment = () => {
           </div>
         </div>
       )}
-      
-    
     </div>
   );
 };
