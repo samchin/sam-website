@@ -4,15 +4,15 @@ import '../DeviceTypeHandler';
 
 // Default values in case environment variables are not defined
 const DEFAULT_NUM_ACTUATORS = 6;
-const DEFAULT_INITIAL_AMPLITUDE = 5;
-const DEFAULT_STEP_SIZE = 1.0;
+const DEFAULT_INITIAL_AMPLITUDE = 0.5;
+const DEFAULT_STEP_SIZE = 0.1;
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
 
 // Parse environment variables with fallbacks to default values
 const NUM_ACTUATORS = process.env.REACT_APP_NUMBER_ACTUATOR ? parseInt(process.env.REACT_APP_NUMBER_ACTUATOR) : DEFAULT_NUM_ACTUATORS;
-const INITIAL_AMPLITUDE = process.env.REACT_APP_INITIAL_AMPLITUDE ? parseInt(process.env.REACT_APP_INITIAL_AMPLITUDE) : DEFAULT_INITIAL_AMPLITUDE;
-const INITIAL_STEP_SIZE = process.env.REACT_APP_STEP_RESOLUTION ? parseFloat(process.env.REACT_APP_STEP_RESOLUTION) : DEFAULT_STEP_SIZE;
+const INITIAL_AMPLITUDE = DEFAULT_INITIAL_AMPLITUDE;
+const INITIAL_STEP_SIZE = DEFAULT_STEP_SIZE;
 const INITIAL_ERRORS_ACCEPTED = process.env.REACT_APP_REVERSAL ? parseInt(process.env.REACT_APP_REVERSAL) : DEFAULT_ERRORS_ACCEPTED;
 const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID;
 
