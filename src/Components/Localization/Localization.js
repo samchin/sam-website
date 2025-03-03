@@ -6,6 +6,7 @@ const NUM_ACTUATORS = 6; // 6 motors
 const TRIALS_PER_MOTOR = 10; // Each motor repeated 10 times
 const STIMULUS_DURATION = 500; // 500 ms
 const RESPONSE_DELAY = 1000; // 1000 ms delay after participant's guess
+const FEEDBACK_DURATION = 1500; // How long to show the feedback (1500 ms)
 const START_DELAY = 1000; // 1000 ms delay after start experiment is pressed
 const PID = parseInt(process.env.REACT_APP_PID);
 const WS_URL = 'ws://127.0.0.1:8000';
@@ -24,6 +25,7 @@ const Experiment = () => {
   const [isAcclimationMode, setIsAcclimationMode] = useState(true);
   const [currentAcclimationButton, setCurrentAcclimationButton] = useState(1);
   const [isReversedAcclimation, setIsReversedAcclimation] = useState(false);
+  const [feedbackMotorIndex, setFeedbackMotorIndex] = useState(null);
   const wsRef = useRef(null);
 
   // Set up WebSocket connection
@@ -180,6 +182,7 @@ const Experiment = () => {
     setActiveMotor(motor);
     setWaitingForResponse(true);
     setCurrentTrialIndex(trialIndex);
+    setFeedbackMotorIndex(null);
 
     // Ensure WebSocket is ready before sending
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -251,8 +254,7 @@ const Experiment = () => {
     if (!waitingForResponse) return;
 
     const currentMotor = trialSequence[currentTrialIndex];
-    // alert(`Motor activated: ${currentMotor + 1}, You chose: ${response + 1}`); // This will show as a popup: only for debugging comment out for experiment
-
+    
     // Record response
     setResponses(prev => [...prev, {
       motor: currentMotor,
@@ -261,13 +263,25 @@ const Experiment = () => {
       trialIndex: currentTrialIndex
     }]);
 
+    // Disable further responses while showing feedback
     setWaitingForResponse(false);
-
-    // Add delay before starting next trial
+    
+    // Show feedback about which motor was actually activated
+    console.log('SHOWING FEEDBACK FOR MOTOR:', currentMotor + 1);
+    setFeedbackMotorIndex(currentMotor);
+    
+    // After feedback duration, move to next trial
     setTimeout(() => {
-      const nextTrialIndex = currentTrialIndex + 1;
-      startTrial(nextTrialIndex);
-    }, RESPONSE_DELAY);
+      console.log('Feedback period ended, moving to next trial');
+      setFeedbackMotorIndex(null);
+      
+      // Start next trial after delay
+      setTimeout(() => {
+        const nextTrialIndex = currentTrialIndex + 1;
+        startTrial(nextTrialIndex);
+      }, RESPONSE_DELAY);
+      
+    }, FEEDBACK_DURATION);
   };
 
   const endExperiment = () => {
@@ -336,21 +350,37 @@ const Experiment = () => {
           className="diagram"
         />
         <div className="button-overlay">
-          {buttonPositions.map((btn, i) => (
-            <button
-              key={btn.id}
-              className="circle-button"
-              onClick={() => isAcclimationMode ? handleAcclimationClick(i) : handleResponse(i)}
-              style={{
-                position: 'absolute',
-                left: `${btn.x}%`,
-                top: `${btn.y}%`,
-                transform: 'translate(-50%, -50%)',
-              }}
-            >
-              {i + 1}
-            </button>
-          ))}
+          {buttonPositions.map((btn, i) => {
+            // Custom button styling to highlight feedback motor
+            const buttonStyle = {
+              position: 'absolute',
+              left: `${btn.x}%`,
+              top: `${btn.y}%`,
+              transform: 'translate(-50%, -50%)',
+              // Overrides when this is the feedback motor
+              backgroundColor: feedbackMotorIndex === i ? '#FFEB3B' : 'transparent',
+              border: feedbackMotorIndex === i ? '2px solid #FFC107' : 'none',
+              color: feedbackMotorIndex === i ? 'black' : 'transparent',
+              opacity: feedbackMotorIndex === i ? 1 : 0,
+              fontWeight: feedbackMotorIndex === i ? 'bold' : 'normal',
+              width: feedbackMotorIndex === i ? '50px' : '40px',
+              height: feedbackMotorIndex === i ? '50px' : '40px',
+              zIndex: feedbackMotorIndex === i ? 100 : 10,
+              transition: 'all 0.2s ease',
+            };
+            
+            return (
+              <button
+                key={btn.id}
+                className="circle-button"
+                onClick={() => isAcclimationMode ? handleAcclimationClick(i) : handleResponse(i)}
+                style={buttonStyle}
+                disabled={feedbackMotorIndex !== null} // Disable buttons during feedback
+              >
+                {i + 1}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -386,6 +416,14 @@ const Experiment = () => {
           <button onClick={handleSaveCSV}>Save Results</button>
         </div>
       )}
+
+      <style jsx>{`
+        .circle-button:active {
+          background-color: rgba(0, 0, 0, 0.2); /* Flash effect when clicked */
+          opacity: 0.3; /* Slightly visible flash */
+          transition: opacity 0.1s ease-out; /* Smooth flash effect */
+        }
+      `}</style>
     </div>
   );
 };
