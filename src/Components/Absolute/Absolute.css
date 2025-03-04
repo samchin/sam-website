@@ -58,10 +58,6 @@
     align-items: center;
     margin-top: 20px;
     gap: 10px;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 20px;
-    gap: 10px;
 }
 
 .playButton {
@@ -69,20 +65,11 @@
     padding: 1em 2em;
     font-size: 1.2em;
     font-weight: bold;
-    display: inline-block;
-    padding: 1em 2em;
-    font-size: 1.2em;
-    font-weight: bold;
     color: #fff;
-    background: linear-gradient(135deg, #a7b6a7 0%, #5b615b 100%);
     background: linear-gradient(135deg, #a7b6a7 0%, #5b615b 100%);
     border: none;
     border-radius: 0.5em;
-    border-radius: 0.5em;
     cursor: pointer;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    width: 200px;
-    margin-bottom: 20px; /* Add space between Play and the other buttons */
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     width: 200px;
     margin-bottom: 20px; /* Add space between Play and the other buttons */
@@ -93,34 +80,11 @@
     padding: 1em 2em;
     font-size: 1.2em;
     font-weight: bold;
-    display: inline-block;
-    padding: 1em 2em;
-    font-size: 1.2em;
-    font-weight: bold;
     color: #fff;
-    background: linear-gradient(135deg, #4ab74a 0%, #62da5a 100%);
     background: linear-gradient(135deg, #4ab74a 0%, #62da5a 100%);
     border: none;
     border-radius: 0.5em;
-    border-radius: 0.5em;
     cursor: pointer;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    width: 200px;
-}
-
-.playButton:hover, .responseButton:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
-}
-
-.responseButton:last-of-type {
-    background: linear-gradient(135deg,  #62da5a 0%, #bdbdbd 100%);
-    color: #fff;
-}
-
-.responseButton:last-of-type:hover {
-    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
-    transform: scale(1.05);
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     width: 200px;
 }
