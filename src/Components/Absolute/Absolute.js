@@ -449,6 +449,14 @@ const Experiment = () => {
       <button className="examinatorToggle" onClick={() => setExaminatorMode(!examinatorMode)}>
         Examinator
       </button>
+      
+      {/* Save CSV button - Now always visible */}
+      <button 
+        className="saveCSVButton" 
+        onClick={handleSaveCSV}
+      >
+        Save CSV
+      </button>
 
       {/* Main experiment view */}
       <div className="experimentArea">
@@ -492,14 +500,11 @@ const Experiment = () => {
 
           {experimentEnded && (
             <div>
-              <p>Experiment ended. Please save your data.</p>
-              <button onClick={handleSaveCSV}>Save CSV</button>
+              <p>Experiment ended.</p>
             </div>
           )}
         </div>
       </div>
-
-      {/* Keyboard shortcuts help removed */}
 
       {examinatorMode && (
         <div className="examinator">
