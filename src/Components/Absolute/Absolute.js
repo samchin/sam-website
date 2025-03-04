@@ -13,11 +13,12 @@ const DEFAULT_PID = 0;
 const NUM_ACTUATORS = process.env.REACT_APP_NUMBER_ACTUATOR ? parseInt(process.env.REACT_APP_NUMBER_ACTUATOR) : DEFAULT_NUM_ACTUATORS;
 const INITIAL_AMPLITUDE = DEFAULT_INITIAL_AMPLITUDE;
 const INITIAL_STEP_SIZE = DEFAULT_STEP_SIZE;
-const INITIAL_ERRORS_ACCEPTED = process.env.REACT_APP_REVERSAL ? parseInt(process.env.REACT_APP_REVERSAL) : DEFAULT_ERRORS_ACCEPTED;
+const INITIAL_ERRORS_ACCEPTED = DEFAULT_ERRORS_ACCEPTED;
 const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID;
 
 const Experiment = () => {
 
+  const [customPID, setCustomPID] = useState(String(PID));
   const [deviceType, setDeviceType] = useState('');
   const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
   const off_amplitudes = [0,0,0,0,0,0];
@@ -398,7 +399,9 @@ const Experiment = () => {
       "IsReversal",
       "ReversalNumber",
       "Type",
-      "Actuator"  // Add Actuator column to CSV headers
+      "Actuator",
+      "DeviceType",
+      "PID"  // Add PID column to CSV headers
     ];
     
     const rows = trialData.map(t => [
@@ -411,7 +414,9 @@ const Experiment = () => {
       t.isReversal || false,
       t.reversalNumber || "",
       t.type,
-      t.actuator  // Add actuator value to CSV rows
+      t.actuator,
+      deviceType,  // Add device type to each row
+      customPID  // Add custom PID to each row
     ]);
 
     let csvContent = headers.join(",") + "\n";
@@ -420,22 +425,34 @@ const Experiment = () => {
     });
 
     //save on another page the project configuration
-    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "Total Reversals"];
-    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, reversalPoints]];
+    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "Total Reversals", "DeviceType", "PID"];
+    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, reversalPoints, deviceType, customPID]];
 
     csvContent += "\n\n" + headers2.join(",") + "\n";
     rows2.forEach(r => {
       csvContent += r.join(",") + "\n";
     });
 
+    // Include extra metadata at the top of the file
+    const metadataHeaders = ["DeviceType", "PID"];
+    const metadataRows = [[deviceType, customPID]];
+    
+    let finalCsvContent = metadataHeaders.join(",") + "\n";
+    metadataRows.forEach(r => {
+      finalCsvContent += r.join(",") + "\n";
+    });
+    
+    finalCsvContent += "\n" + csvContent;
 
-    // Create a blob and trigger download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // Create a blob and trigger download with device type in the filename
+    const blob = new Blob([finalCsvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = "absolute_threshold_data_" + String(PID) + ".csv";
-    console.log(String(PID))
+    // Include device type and PID in the filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    a.download = `absolute_threshold_${deviceType}_pid${customPID}_${timestamp}.csv`;
+    console.log(`Saving data for ${deviceType} with PID ${customPID}`);
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -449,6 +466,27 @@ const Experiment = () => {
       <button className="examinatorToggle" onClick={() => setExaminatorMode(!examinatorMode)}>
         Examinator
       </button>
+      
+      {/* Save CSV button - Now always visible */}
+      <div className="dataExportControls">
+        <button 
+          className="saveCSVButton" 
+          onClick={handleSaveCSV}
+        >
+          Save CSV
+        </button>
+        
+        <div className="pidInputContainer">
+          <label htmlFor="pidInput">Participant ID:</label>
+          <input
+            id="pidInput"
+            type="text"
+            value={customPID}
+            onChange={(e) => setCustomPID(e.target.value)}
+            className="pidInput"
+          />
+        </div>
+      </div>
 
       {/* Main experiment view */}
       <div className="experimentArea">
@@ -492,14 +530,11 @@ const Experiment = () => {
 
           {experimentEnded && (
             <div>
-              <p>Experiment ended. Please save your data.</p>
-              <button onClick={handleSaveCSV}>Save CSV</button>
+              <p>Experiment ended.</p>
             </div>
           )}
         </div>
       </div>
-
-      {/* Keyboard shortcuts help removed */}
 
       {examinatorMode && (
         <div className="examinator">

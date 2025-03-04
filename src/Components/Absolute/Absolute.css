@@ -54,28 +54,54 @@
 
 .controlRow {
     display: flex;
-    gap: 20px; /* Increased gap for more spacing between buttons */
-    margin-bottom: 20px;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+    gap: 10px;
 }
 
 .playButton {
-    padding: 10px 20px;
-    font-size: 16px;
-    background: #4CAF50;
+    display: inline-block;
+    padding: 1em 2em;
+    font-size: 1.2em;
+    font-weight: bold;
     color: #fff;
+    background: linear-gradient(135deg, #a7b6a7 0%, #5b615b 100%);
     border: none;
-    border-radius: 5px;
+    border-radius: 0.5em;
     cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    width: 200px;
+    margin-bottom: 20px; /* Add space between Play and the other buttons */
 }
 
 .responseButton {
-    padding: 10px 20px;
-    font-size: 16px;
-    background: #2196F3;
+    display: inline-block;
+    padding: 1em 2em;
+    font-size: 1.2em;
+    font-weight: bold;
     color: #fff;
+    background: linear-gradient(135deg, #4ab74a 0%, #62da5a 100%);
     border: none;
-    border-radius: 5px;
+    border-radius: 0.5em;
     cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    width: 200px;
+}
+
+.playButton:hover, .responseButton:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
+}
+
+.responseButton:last-of-type {
+    background: linear-gradient(135deg,  #62da5a 0%, #bdbdbd 100%);
+    color: #fff;
+}
+
+.responseButton:last-of-type:hover {
+    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
+    transform: scale(1.05);
 }
 
 .plotArea {
@@ -103,64 +129,6 @@
     transform: translateX(-50%);
 }
 
-.playButton {
-    display: inline-block;
-    padding: 1em 2em;
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #fff;
-    background: linear-gradient(135deg, #a7b6a7 0%, #5b615b 100%);
-    border: none;
-    border-radius: 0.5em;
-    cursor: pointer;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    width: 200px;
-  }
-  
-
-.responseButton {
-    display: inline-block;
-    padding: 1em 2em;
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #fff;
-    background: linear-gradient(135deg, #4ab74a 0%, #62da5a 100%);
-    border: none;
-    border-radius: 0.5em;
-    cursor: pointer;
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    width: 200px;
-}
-
-  
-.playButton:hover, .responseButton:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
-}
-
-.responseButton:last-of-type {
-    background: linear-gradient(135deg,  #62da5a 0%, #bdbdbd 100%);
-    color: #fff;
-}
-
-.responseButton:last-of-type:hover {
-    box-shadow: 0 0.5em 1em rgba(0,0,0,0.2);
-    transform: scale(1.05);
-}
-
-
-.controlRow {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 20px;
-    gap: 10px;
-}
-
-.playButton {
-    margin-bottom: 20px; /* Add space between Play and the other buttons */
-}
-
 .device-type {
     background: #f0f4f8;
     padding: 4px 8px;
@@ -174,13 +142,13 @@
     position: absolute;
     top: 10px;
     right: 10px;
-  }
+}
   
-  .device-type::before {
+.device-type::before {
     content: '•';
     color: #4299e1;
     margin-right: 4px;
-  }
+}
 
 .intervalIndicators {
     display: flex;
@@ -231,4 +199,66 @@
     font-size: 0.8em;
     color: #666;
     margin-left: 5px;
+}
+
+/* Data Export Controls */
+.dataExportControls {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    z-index: 100;
+}
+
+/* Save CSV Button Styles */
+.saveCSVButton {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.saveCSVButton:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.saveCSVButton:active {
+    background: linear-gradient(135deg, #3d8b3d 0%, #2d682d 100%);
+    transform: scale(0.98);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* PID Input Styles */
+.pidInputContainer {
+    display: flex;
+    align-items: center;
+    margin-left: 15px;
+}
+
+.pidInputContainer label {
+    margin-right: 8px;
+    font-weight: bold;
+    color: #333;
+}
+
+.pidInput {
+    padding: 6px 10px;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    width: 100px;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.pidInput:focus {
+    border-color: #4CAF50;
+    outline: none;
+    box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
 }
