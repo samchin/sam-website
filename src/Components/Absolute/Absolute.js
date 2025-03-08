@@ -4,17 +4,23 @@ import '../DeviceTypeHandler';
 
 // Default values in case environment variables are not defined
 const DEFAULT_NUM_ACTUATORS = 6;
-const DEFAULT_INITIAL_AMPLITUDE = 0.5;
-const DEFAULT_STEP_SIZE = 0.1;
+// We no longer need DEFAULT_INITIAL_AMPLITUDE since amplitude will be calculated from step index
+const DEFAULT_STEP_INDEX = 0;
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
 
 // Parse environment variables with fallbacks to default values
 const NUM_ACTUATORS = process.env.REACT_APP_NUMBER_ACTUATOR ? parseInt(process.env.REACT_APP_NUMBER_ACTUATOR) : DEFAULT_NUM_ACTUATORS;
-const INITIAL_AMPLITUDE = DEFAULT_INITIAL_AMPLITUDE;
-const INITIAL_STEP_SIZE = DEFAULT_STEP_SIZE;
+const INITIAL_STEP_INDEX = DEFAULT_STEP_INDEX;
 const INITIAL_ERRORS_ACCEPTED = DEFAULT_ERRORS_ACCEPTED;
 const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID;
+
+// LogDecay function for calculating step size
+function logDecay(index) { 
+  const startValue = 0.5; 
+  const decayRatio = 0.447; // This is approximately sqrt(0.2) 
+  return startValue * (Math.pow(decayRatio, index)); 
+}
 
 const Experiment = () => {
 
@@ -23,8 +29,9 @@ const Experiment = () => {
   const validDeviceTypes = ['necklace', 'overear', 'bracelet'];
   const off_amplitudes = [0,0,0,0,0,0];
   const [examinatorMode, setExaminatorMode] = useState(true);
-  const [startAmplitude, setStartAmplitude] = useState(INITIAL_AMPLITUDE);
-  const [stepSize, setStepSize] = useState(INITIAL_STEP_SIZE);
+  // Define initial amplitude based on step index rather than having a separate state
+  const [stepIndex, setStepIndex] = useState(INITIAL_STEP_INDEX);
+
   // Track current actuator for cycling through all actuators
   const [selectedActuator, setSelectedActuator] = useState(0);
   const [currentActuatorIndex, setCurrentActuatorIndex] = useState(0);
@@ -34,8 +41,10 @@ const Experiment = () => {
   const [reversalPoints, setReversalPoints] = useState(0);
   const [lastDirection, setLastDirection] = useState(null); // 'up' or 'down'
 
-  const [bestAmplitude, setBestAmplitude] = useState(startAmplitude);
-  const [currentAmplitude, setCurrentAmplitude] = useState(startAmplitude);
+  // State for tracking amplitudes and steps
+  const [bestAmplitude, setBestAmplitude] = useState(logDecay(INITIAL_STEP_INDEX));
+  const [currentAmplitude, setCurrentAmplitude] = useState(logDecay(INITIAL_STEP_INDEX));
+  const [currentStepIndex, setCurrentStepIndex] = useState(INITIAL_STEP_INDEX);
   const [trialData, setTrialData] = useState([]); // {amplitude, correct, timestamp} objects
   const [experimentStarted, setExperimentStarted] = useState(false);
   const [experimentEnded, setExperimentEnded] = useState(false);
@@ -60,11 +69,15 @@ const Experiment = () => {
     // Start with the first actuator
     setCurrentActuatorIndex(0);
     
-    setBestAmplitude(startAmplitude);
+    // Initialize amplitude using logDecay and the starting step index
+    const initialAmplitude = logDecay(stepIndex);
+    
+    setBestAmplitude(initialAmplitude);
     setExperimentStarted(true);
     setExperimentEnded(false);
     setExaminatorMode(false);
-    setCurrentAmplitude(startAmplitude);
+    setCurrentAmplitude(initialAmplitude);
+    setCurrentStepIndex(stepIndex);
     setTrialData([]);
     setConsecutiveCorrect(0);
     setReversalPoints(0);
@@ -186,7 +199,11 @@ const Experiment = () => {
       
       // If three consecutive correct, decrease amplitude
       if (newConsecutiveCorrect >= 3) {
-        const newAmplitude = Math.round((currentAmplitude - stepSize) * 10) / 10;
+        // Move to next step index
+        const newStepIndex = currentStepIndex + 1;
+        // Set amplitude directly to the output of logDecay for the new step index
+        const newAmplitude = logDecay(newStepIndex);
+        
         direction = 'down';
         
         // Check if this is a reversal
@@ -195,8 +212,9 @@ const Experiment = () => {
           setReversalPoints(prev => prev + 1);
         }
         
-        // Update amplitude and reset consecutive correct counter
+        // Update amplitude, step index, and reset consecutive correct counter
         setCurrentAmplitude(newAmplitude);
+        setCurrentStepIndex(newStepIndex);
         setConsecutiveCorrect(0);
         
         // Update best amplitude if appropriate
@@ -205,8 +223,12 @@ const Experiment = () => {
         }
       }
     } else {
-      // If incorrect, increase amplitude
-      const newAmplitude = Math.round((currentAmplitude + stepSize) * 10) / 10;
+      // If incorrect, decrease step index (to return to previous step size)
+      // Ensure step index doesn't go below 0
+      const newStepIndex = Math.max(0, currentStepIndex - 1);
+      // Set amplitude directly to the output of logDecay for this step index
+      const newAmplitude = logDecay(newStepIndex);
+      
       direction = 'up';
       
       // Check if this is a reversal
@@ -215,8 +237,9 @@ const Experiment = () => {
         setReversalPoints(prev => prev + 1);
       }
       
-      // Update amplitude and reset consecutive correct counter
+      // Update amplitude, step index, and reset consecutive correct counter
       setCurrentAmplitude(newAmplitude);
+      setCurrentStepIndex(newStepIndex);
       setConsecutiveCorrect(0);
     }
     
@@ -235,6 +258,7 @@ const Experiment = () => {
       isReversal,
       consecutiveCorrect: correct ? consecutiveCorrect + 1 : consecutiveCorrect,
       reversalNumber: isReversal ? reversalPoints + 1 : reversalPoints,
+      stepIndex: currentStepIndex,
       type,
       device: deviceType,
       actuator: currentActuatorIndex  // Add the current actuator to the trial data
@@ -250,19 +274,20 @@ const Experiment = () => {
       const nextActuatorIndex = (currentActuatorIndex + 1) % NUM_ACTUATORS;
       setCurrentActuatorIndex(nextActuatorIndex);
       
-      // If we've cycled through all actuators, end the experiment
-      if (nextActuatorIndex === 0) {
-        alert("Experiment ended. All actuators have been tested.");
-        setExperimentEnded(true);
-      } else {
-        // Otherwise, start a new staircase with the next actuator
-        alert(`Staircase for actuator ${currentActuatorIndex} completed with 6 reversal points. Starting actuator ${nextActuatorIndex}.`);
-        setSelectedActuator(nextActuatorIndex);
-        setCurrentAmplitude(startAmplitude);
-        setConsecutiveCorrect(0);
-        setReversalPoints(0);
-        setLastDirection(null);
-      }
+      // Reset for new actuator
+  if (nextActuatorIndex === 0) {
+    alert("Experiment ended. All actuators have been tested.");
+    setExperimentEnded(true);
+  } else {
+    // Otherwise, start a new staircase with the next actuator
+    alert(`Staircase for actuator ${currentActuatorIndex} completed with 6 reversal points. Starting actuator ${nextActuatorIndex}.`);
+    setSelectedActuator(nextActuatorIndex);
+    setCurrentAmplitude(logDecay(stepIndex));
+    setCurrentStepIndex(stepIndex);
+    setConsecutiveCorrect(0);
+    setReversalPoints(0);
+    setLastDirection(null);
+  }
     }
     
     setHasBeenPlayed(false);
@@ -299,7 +324,7 @@ const Experiment = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [experimentStarted, experimentEnded, hasBeenPlayed, stimulusInterval]);
+  }, [experimentStarted, experimentEnded, hasBeenPlayed, stimulusInterval, currentStepIndex]);
 
   useEffect(() => {
     let ws;
@@ -364,24 +389,41 @@ const Experiment = () => {
   const plotHeight = 200;
   const padding = 30;
 
-  // Calculate maximum and minimum amplitude
+  // Calculate maximum and minimum amplitude for log scale
+  // Prevent log(0) by using a small positive value for minimum
+  const epsilon = 0.0001;
+  
+  // Get amplitude values from trial data, with fallbacks
+  const initialAmplitude = logDecay(stepIndex);
+  const amplitudeValues = trialData.length > 0
+    ? trialData.map(t => Math.max(t.amplitude, epsilon))
+    : [Math.max(initialAmplitude, epsilon)];
+  
+  // Add padding to max/min for display purposes
   const maxAmplitude = trialData.length > 0
-    ? Math.max(...trialData.map(t => t.amplitude)) + 2 * stepSize
-    : startAmplitude + stepSize;
-
+    ? Math.max(...amplitudeValues) * 1.5 
+    : initialAmplitude * 1.5;
+    
   const minAmplitude = trialData.length > 0
-    ? Math.min(...trialData.map(t => t.amplitude)) - 2 * stepSize
-    : 0;
-
-  // Generate coordinates for the plot
+    ? Math.min(...amplitudeValues) / 1.5
+    : Math.max(initialAmplitude / 4, epsilon);
+  
+  // Log scale transformations
+  const logMin = Math.log(minAmplitude);
+  const logMax = Math.log(maxAmplitude);
+  const logRange = logMax - logMin;
+  
+  // Generate coordinates for the plot (log scale for y-axis)
   const points = trialData.map((t, i) => {
     const x = trialData.length > 1
       ? padding + (i / (trialData.length - 1)) * (plotWidth - 2 * padding)
       : plotWidth / 2;
-    const y = trialData.length > 1
-      ? padding + ((maxAmplitude - t.amplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding)
-      : plotHeight / 2;
-
+      
+    // Log scale for y-axis: map log(amplitude) to pixel coordinates
+    const logAmplitude = Math.log(Math.max(t.amplitude, epsilon));
+    const normalizedLogValue = (logMax - logAmplitude) / logRange;
+    const y = padding + normalizedLogValue * (plotHeight - 2 * padding);
+    
     return { x, y, correct: t.correct };
   });
 
@@ -400,10 +442,11 @@ const Experiment = () => {
       "ConsecutiveCorrect",
       "IsReversal",
       "ReversalNumber",
+      "StepIndex",
       "Type",
       "Actuator",
       "DeviceType",
-      "PID"  // Add PID column to CSV headers
+      "PID"
     ];
     
     const rows = trialData.map(t => [
@@ -415,10 +458,11 @@ const Experiment = () => {
       t.consecutiveCorrect,
       t.isReversal || false,
       t.reversalNumber || "",
+      t.stepIndex,
       t.type,
       t.actuator,
-      deviceType,  // Add device type to each row
-      customPID  // Add custom PID to each row
+      deviceType,
+      customPID
     ]);
 
     let csvContent = headers.join(",") + "\n";
@@ -427,8 +471,8 @@ const Experiment = () => {
     });
 
     //save on another page the project configuration
-    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "DeviceType", "PID"];
-    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, deviceType, customPID]];
+    const headers2 = ["Starting Step Index", "Initial Amplitude", "Selected Actuator", "Best Amplitude", "DeviceType", "PID"];
+    const rows2 = [[stepIndex, logDecay(stepIndex), selectedActuator, bestAmplitude, deviceType, customPID]];
 
     csvContent += "\n\n" + headers2.join(",") + "\n";
     rows2.forEach(r => {
@@ -457,6 +501,17 @@ const Experiment = () => {
     console.log(`Saving data for ${deviceType} with PID ${customPID}`);
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // We no longer need handleAmplitudeChange since amplitude is determined by step index
+
+  const handleStepIndexChange = (e) => {
+    const value = e.target.value;
+    if (value === '' || isNaN(parseInt(value))) {
+      setStepIndex('');
+    } else {
+      setStepIndex(parseInt(value));
+    }
   };
 
   return (
@@ -564,19 +619,19 @@ const Experiment = () => {
                     stroke="#000"
                     strokeWidth="1"
                   >
-                    <title>{`Trial ${i + 1}: Amp=${trialData[i].amplitude}, ${p.correct ? 'Correct' : 'Incorrect'}`}</title>
+                    <title>{`Trial ${i + 1}: Amp=${trialData[i].amplitude}, ${p.correct ? 'Correct' : 'Incorrect'}, Step Index=${trialData[i].stepIndex}`}</title>
                   </circle>
                 ))}
-                {/* Add a horizontal line for best amplitude */}
+                {/* Add a horizontal line for best amplitude with log scale */}
                 {trialData.length > 0 && (
                   <line
                     x1={padding}
                     y1={
-                      padding + ((maxAmplitude - bestAmplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding)
+                      padding + ((logMax - Math.log(Math.max(bestAmplitude, epsilon))) / logRange) * (plotHeight - 2 * padding)
                     }
                     x2={plotWidth - padding}
                     y2={
-                      padding + ((maxAmplitude - bestAmplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding)
+                      padding + ((logMax - Math.log(Math.max(bestAmplitude, epsilon))) / logRange) * (plotHeight - 2 * padding)
                     }
                     stroke="orange"
                     strokeWidth="2"
@@ -588,12 +643,12 @@ const Experiment = () => {
                   <text
                     x={padding}
                     y={
-                      padding + ((maxAmplitude - bestAmplitude) / (maxAmplitude - minAmplitude)) * (plotHeight - 2 * padding) - 10
+                      padding + ((logMax - Math.log(Math.max(bestAmplitude, epsilon))) / logRange) * (plotHeight - 2 * padding) - 10
                     }
                     fill="orange"
                     fontSize="12"
                   >
-                    Best Amplitude: {bestAmplitude}
+                    Best Amplitude: {bestAmplitude.toFixed(4)}
                   </text>
                 )}
                 {/* Add text for reversal points */}
@@ -614,28 +669,70 @@ const Experiment = () => {
                 >
                   Consecutive Correct: {consecutiveCorrect}/3
                 </text>
+                {/* Add y-axis labels for log scale */}
+                {[0.1, 0.25, 0.5, 1].map(value => {
+                  if (value >= minAmplitude && value <= maxAmplitude) {
+                    const logValue = Math.log(value);
+                    const y = padding + ((logMax - logValue) / logRange) * (plotHeight - 2 * padding);
+                    return (
+                      <g key={value}>
+                        <line 
+                          x1={padding - 5} 
+                          y1={y} 
+                          x2={padding} 
+                          y2={y} 
+                          stroke="black" 
+                          strokeWidth="1" 
+                        />
+                        <text 
+                          x={padding - 8} 
+                          y={y + 4} 
+                          textAnchor="end" 
+                          fontSize="10"
+                        >
+                          {value}
+                        </text>
+                      </g>
+                    );
+                  }
+                  return null;
+                })}
+                <text
+                  x={padding - 15}
+                  y={padding - 15}
+                  textAnchor="middle"
+                  transform={`rotate(-90, ${padding - 15}, ${plotHeight/2})`}
+                  fontSize="12"
+                >
+                  Amplitude (log scale)
+                </text>
+                
+                {/* Add text for current step index and size */}
+                <text
+                  x={padding}
+                  y={plotHeight - padding / 4}
+                  textAnchor="start"
+                  fill="black"
+                >
+                  Step Index: {currentStepIndex}, Current Step Size: {logDecay(currentStepIndex).toFixed(4)}
+                </text>
               </svg>
             </div>
           </div>
           <div className="examinatorPanel">
             <h2>Examinator Mode</h2>
             <div className="inputGroup">
-              <label>Start Amplitude:</label>
+              <label>Starting Step Index:</label>
               <input
                 type="number"
-                step="0.01"
-                value={startAmplitude}
-                onChange={e => setStartAmplitude(parseFloat(e.target.value))}
+                value={stepIndex}
+                onChange={handleStepIndexChange}
+                min="0"
+                step="1"
               />
             </div>
             <div className="inputGroup">
-              <label>Step:</label>
-              <input
-                type="number"
-                step="0.01"
-                value={stepSize}
-                onChange={e => setStepSize(parseFloat(e.target.value))}
-              />
+              <label>Initial Amplitude: {logDecay(stepIndex).toFixed(4)}</label>
             </div>
             <div className="inputGroup">
               <label>Starting Actuator:</label>
