@@ -7,6 +7,7 @@ const TRIALS_PER_MOTOR = 10; // Each motor repeated 10 times
 const STIMULUS_DURATION = 500; // 500 ms
 const RESPONSE_DELAY = 1000; // 1000 ms delay after participant's guess
 const FEEDBACK_DURATION = 1500; // How long to show the feedback (1500 ms)
+
 const START_DELAY = 1000; // 1000 ms delay after start experiment is pressed
 const PID = parseInt(process.env.REACT_APP_PID);
 const WS_URL = 'ws://127.0.0.1:8000';
@@ -26,6 +27,7 @@ const Experiment = () => {
   const [currentAcclimationButton, setCurrentAcclimationButton] = useState(1);
   const [isReversedAcclimation, setIsReversedAcclimation] = useState(false);
   const [feedbackMotorIndex, setFeedbackMotorIndex] = useState(null);
+
   const wsRef = useRef(null);
 
   // Set up WebSocket connection
@@ -184,6 +186,7 @@ const Experiment = () => {
     setCurrentTrialIndex(trialIndex);
     setFeedbackMotorIndex(null);
 
+
     // Ensure WebSocket is ready before sending
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       // Activate the selected motor
@@ -254,7 +257,7 @@ const Experiment = () => {
     if (!waitingForResponse) return;
 
     const currentMotor = trialSequence[currentTrialIndex];
-    
+
     // Record response
     setResponses(prev => [...prev, {
       motor: currentMotor,
@@ -262,6 +265,7 @@ const Experiment = () => {
       timestamp: new Date(),
       trialIndex: currentTrialIndex
     }]);
+
 
     // Disable further responses while showing feedback
     setWaitingForResponse(false);
@@ -282,6 +286,7 @@ const Experiment = () => {
       }, RESPONSE_DELAY);
       
     }, FEEDBACK_DURATION);
+
   };
 
   const endExperiment = () => {
@@ -350,6 +355,7 @@ const Experiment = () => {
           className="diagram"
         />
         <div className="button-overlay">
+
           {buttonPositions.map((btn, i) => {
             // Custom button styling to highlight feedback motor
             const buttonStyle = {
@@ -381,6 +387,7 @@ const Experiment = () => {
               </button>
             );
           })}
+
         </div>
       </div>
 
@@ -407,6 +414,14 @@ const Experiment = () => {
               </button>
             </div>
           )}
+
+        </div>
+      )}
+
+      {experimentEnded && (
+        <div>
+          <p>Experiment Completed!</p>
+          <button onClick={handleSaveCSV}>Save Results</button>
         </div>
       )}
 
