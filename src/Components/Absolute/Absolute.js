@@ -91,8 +91,10 @@ const Experiment = () => {
     const timestamp = new Date().toISOString();
     const type = "PLAY_SIGNAL";
 
-    // Use the current actuator from the cycling sequence
-    const actuator = currentActuatorIndex;
+    // Use the current actuator from the cycling sequence // NEW :ROTATED
+
+    const actuator = (currentActuatorIndex + 2) % NUM_ACTUATORS;
+
     
     // Create stimulus amplitudes array - only the selected actuator has amplitude
     const stimulusAmplitudes = Array.from(
@@ -425,8 +427,8 @@ const Experiment = () => {
     });
 
     //save on another page the project configuration
-    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "Total Reversals", "DeviceType", "PID"];
-    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, reversalPoints, deviceType, customPID]];
+    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "DeviceType", "PID"];
+    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, deviceType, customPID]];
 
     csvContent += "\n\n" + headers2.join(",") + "\n";
     rows2.forEach(r => {
