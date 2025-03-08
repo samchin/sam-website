@@ -4,8 +4,7 @@ import '../DeviceTypeHandler';
 
 // Default values in case environment variables are not defined
 const DEFAULT_NUM_ACTUATORS = 6;
-// We no longer need DEFAULT_INITIAL_AMPLITUDE since amplitude will be calculated from step index
-const DEFAULT_STEP_INDEX = 1;
+const DEFAULT_STEP_INDEX = 1; 
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
 
@@ -105,9 +104,7 @@ const Experiment = () => {
     const type = "PLAY_SIGNAL";
 
     // Use the current actuator from the cycling sequence // NEW :ROTATED
-
     const actuator = (currentActuatorIndex + 2) % NUM_ACTUATORS;
-
     
     // Create stimulus amplitudes array - only the selected actuator has amplitude
     const stimulusAmplitudes = Array.from(
@@ -275,19 +272,24 @@ const Experiment = () => {
       setCurrentActuatorIndex(nextActuatorIndex);
       
       // Reset for new actuator
-  if (nextActuatorIndex === 0) {
-    alert("Experiment ended. All actuators have been tested.");
-    setExperimentEnded(true);
-  } else {
-    // Otherwise, start a new staircase with the next actuator
-    alert(`Staircase for actuator ${currentActuatorIndex} completed with 6 reversal points. Starting actuator ${nextActuatorIndex}.`);
-    setSelectedActuator(nextActuatorIndex);
-    setCurrentAmplitude(logDecay(stepIndex));
-    setCurrentStepIndex(stepIndex);
-    setConsecutiveCorrect(0);
-    setReversalPoints(0);
-    setLastDirection(null);
-  }
+      if (nextActuatorIndex === 0) {
+        alert("Experiment ended. All actuators have been tested.");
+        setExperimentEnded(true);
+      } else {
+        // Otherwise, start a new staircase with the next actuator
+        alert(`Staircase for actuator ${currentActuatorIndex} completed with 6 reversal points. Starting actuator ${nextActuatorIndex}.`);
+        setSelectedActuator(nextActuatorIndex);
+        
+        // FIXED: Reset amplitude to initial value based on starting step index
+        const initialAmplitude = logDecay(stepIndex);
+        setCurrentAmplitude(initialAmplitude);
+        setCurrentStepIndex(stepIndex);
+        setBestAmplitude(prev => Math.min(prev, initialAmplitude)); // Keep best amplitude across actuators
+        
+        setConsecutiveCorrect(0);
+        setReversalPoints(0);
+        setLastDirection(null);
+      }
     }
     
     setHasBeenPlayed(false);
