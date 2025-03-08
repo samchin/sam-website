@@ -5,7 +5,7 @@ import '../DeviceTypeHandler';
 // Default values in case environment variables are not defined
 const DEFAULT_NUM_ACTUATORS = 6;
 // We no longer need DEFAULT_INITIAL_AMPLITUDE since amplitude will be calculated from step index
-const DEFAULT_STEP_INDEX = 0;
+const DEFAULT_STEP_INDEX = 1;
 const DEFAULT_ERRORS_ACCEPTED = 3;
 const DEFAULT_PID = 0;
 
@@ -17,8 +17,8 @@ const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DE
 
 // LogDecay function for calculating step size
 function logDecay(index) { 
-  const startValue = 0.5; 
-  const decayRatio = 0.447; // This is approximately sqrt(0.2) 
+  const startValue = 0.833; 
+  const decayRatio = 0.6; 
   return startValue * (Math.pow(decayRatio, index)); 
 }
 
