@@ -7,7 +7,6 @@ const TRIALS_PER_MOTOR = 10; // Each motor repeated 10 times
 const STIMULUS_DURATION = 500; // 500 ms
 const RESPONSE_DELAY = 1000; // 1000 ms delay after participant's guess
 const FEEDBACK_DURATION = 750; // How long to show the feedback (1500 ms)
-const FEEDBACK_DURATION = 750; // How long to show the feedback (1500 ms)
 
 const START_DELAY = 1000; // 1000 ms delay after start experiment is pressed
 const PID = parseInt(process.env.REACT_APP_PID);
