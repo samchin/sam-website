@@ -427,8 +427,8 @@ const Experiment = () => {
     });
 
     //save on another page the project configuration
-    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "Total Reversals", "DeviceType", "PID"];
-    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, reversalPoints, deviceType, customPID]];
+    const headers2 = ["Start Amplitude", "Step Size", "Selected Actuator", "Best Amplitude", "DeviceType", "PID"];
+    const rows2 = [[startAmplitude, stepSize, selectedActuator, bestAmplitude, deviceType, customPID]];
 
     csvContent += "\n\n" + headers2.join(",") + "\n";
     rows2.forEach(r => {
