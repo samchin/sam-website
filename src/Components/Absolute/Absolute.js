@@ -91,8 +91,10 @@ const Experiment = () => {
     const timestamp = new Date().toISOString();
     const type = "PLAY_SIGNAL";
 
-    // Use the current actuator from the cycling sequence
-    const actuator = currentActuatorIndex;
+    // Use the current actuator from the cycling sequence // NEW :ROTATED
+
+    const actuator = (currentActuatorIndex + 2) % NUM_ACTUATORS;
+
     
     // Create stimulus amplitudes array - only the selected actuator has amplitude
     const stimulusAmplitudes = Array.from(
