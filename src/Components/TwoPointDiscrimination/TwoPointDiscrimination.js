@@ -3,7 +3,7 @@ import { loadButtonPositions } from '../Localization/buttonPositions';
 import '../Localization/Localization.css';
 
 const NUM_ACTUATORS = 6; // 6 motors
-const TRIALS_PER_MOTOR = 10; // Each motor repeated 10 times
+const TRIALS_PER_MOTOR = 5; // Each motor repeated 10 times
 const STIMULUS_DURATION = 500; // 500 ms
 const INTER_STIMULUS_INTERVAL = 1000; // 1000 ms between first and second stimulus
 const RESPONSE_DELAY = 1000; // 1000 ms delay after participant's guess
@@ -414,7 +414,7 @@ const TwoPointDiscrimination = () => {
 
   const handleSaveCSV = () => {
     console.log('Saving responses:', responses);
-
+  
     const headers = [
       'Trial',
       'FirstMotor',
@@ -437,21 +437,26 @@ const TwoPointDiscrimination = () => {
       PID,
       deviceType
     ]);
-
+  
     let csvContent = headers.join(',') + '\n';
     rows.forEach((row) => {
       csvContent += row.join(',') + '\n';
     });
-
+  
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `two_point_discrimination_${deviceType}_${PID}.csv`;
+    
+    // Include device type, PID, and timestamp in the filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    a.download = `two_point_discrimination_${deviceType}_pid${PID}_${timestamp}.csv`;
+    console.log(`Saving data for ${deviceType} with PID ${PID}`);
+    
     a.click();
     URL.revokeObjectURL(url);
   };
-
+  
   return (
     <div className="container">
       <h2 style={{ color: 'darkgrey' }}>Two-Point Discrimination</h2>
