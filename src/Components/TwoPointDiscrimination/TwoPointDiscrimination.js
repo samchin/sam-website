@@ -9,7 +9,7 @@ const INTER_STIMULUS_INTERVAL = 1000; // 1000 ms between first and second stimul
 const RESPONSE_DELAY = 1000; // 1000 ms delay after participant's guess
 const FEEDBACK_DURATION = 750; // How long to show the feedback
 const START_DELAY = 1000; // 1000 ms delay after start experiment is pressed
-const PID = parseInt(process.env.REACT_APP_PID);
+const DEFAULT_PID = 0; // Default PID value
 const WS_URL = 'ws://127.0.0.1:8000';
 
 // Discrimination options
@@ -21,6 +21,7 @@ const DISCRIMINATION_OPTIONS = {
 
 const TwoPointDiscrimination = () => {
   const [deviceType, setDeviceType] = useState('');
+  const [pid, setPid] = useState(process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID);
   const [buttonPositions, setButtonPositions] = useState([]);
   const [trialSequence, setTrialSequence] = useState([]);
   const [currentTrialIndex, setCurrentTrialIndex] = useState(0);
@@ -72,15 +73,22 @@ const TwoPointDiscrimination = () => {
     };
   }, []);
 
-  // Set device type from URL
+  // Set device type and PID from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const deviceParam = params.get('DEVICE_TYPE');
+    const pidParam = params.get('PID');
     const validDevices = ['overear', 'bracelet', 'necklace'];
 
     if (deviceParam && validDevices.includes(deviceParam.toLowerCase())) {
       setDeviceType(deviceParam.toLowerCase());
       console.log('Device type set to:', deviceParam.toLowerCase());
+    }
+    
+    // Set PID from URL parameter if it exists
+    if (pidParam) {
+      setPid(parseInt(pidParam));
+      console.log(`PID set from URL: ${pidParam}`);
     }
   }, []);
 
@@ -434,7 +442,7 @@ const TwoPointDiscrimination = () => {
       r.responseOption,
       r.correct ? 1 : 0,
       r.timestamp,
-      PID,
+      pid,
       deviceType
     ]);
   
@@ -450,8 +458,8 @@ const TwoPointDiscrimination = () => {
     
     // Include device type, PID, and timestamp in the filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    a.download = `two_point_discrimination_${deviceType}_pid${PID}_${timestamp}.csv`;
-    console.log(`Saving data for ${deviceType} with PID ${PID}`);
+    a.download = `two_point_discrimination_${deviceType}_pid${pid}_${timestamp}.csv`;
+    console.log(`Saving data for ${deviceType} with PID ${pid}`);
     
     a.click();
     URL.revokeObjectURL(url);
@@ -470,6 +478,10 @@ const TwoPointDiscrimination = () => {
           WebSocket not connected. Please check your connection.
         </div>
       )}
+
+      <div className="pid-display" style={{ textAlign: 'center', marginBottom: '10px' }}>
+        Participant ID: {pid}
+      </div>
 
       {experimentStarted && !experimentEnded && (
         <div className="stimulus-container">
@@ -660,7 +672,7 @@ const TwoPointDiscrimination = () => {
           font-weight: 500;
           color: #555;
           text-align: center;
-          z-index: 9999; /* Just to ensure it’s on top if anything overlaps */
+          z-index: 9999; /* Just to ensure it's on top if anything overlaps */
         }
         
         .feedback {

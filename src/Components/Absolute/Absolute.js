@@ -94,10 +94,12 @@ const Experiment = () => {
     setLastDirection(null);
     setHasBeenPlayed(false);
   };
+  
   useEffect(() => {
-    // Get device type from URL
+    // Get device type and PID from URL
     const params = new URLSearchParams(window.location.search);
     const deviceParam = params.get('DEVICE_TYPE');
+    const pidParam = params.get('PID');
 
     if (!deviceParam || !validDeviceTypes.includes(deviceParam.toLowerCase())) {
       console.error('Invalid or missing device type');
@@ -105,6 +107,12 @@ const Experiment = () => {
     }
 
     setDeviceType(deviceParam.toLowerCase());
+    
+    // Set PID from URL parameter if it exists
+    if (pidParam) {
+      setCustomPID(pidParam);
+      console.log(`PID set from URL: ${pidParam}`);
+    }
   }, []);
 
   // Implement two-interval forced choice paradigm
