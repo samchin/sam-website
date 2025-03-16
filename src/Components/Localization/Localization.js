@@ -9,11 +9,12 @@ const RESPONSE_DELAY = 1000; // 1000 ms delay after participant's guess
 const FEEDBACK_DURATION = 750; // How long to show the feedback (1500 ms)
 
 const START_DELAY = 1000; // 1000 ms delay after start experiment is pressed
-const PID = parseInt(process.env.REACT_APP_PID);
+const DEFAULT_PID = 0; // Default PID value
 const WS_URL = 'ws://127.0.0.1:8000';
 
 const Experiment = () => {
   const [deviceType, setDeviceType] = useState('');
+  const [pid, setPid] = useState(process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID);
   const [buttonPositions, setButtonPositions] = useState([]);
   const [trialSequence, setTrialSequence] = useState([]);
   const [currentTrialIndex, setCurrentTrialIndex] = useState(0);
@@ -64,15 +65,24 @@ const Experiment = () => {
     };
   }, []);
 
-  // Set device type from URL
   useEffect(() => {
+    // Get device type and PID from URL
     const params = new URLSearchParams(window.location.search);
     const deviceParam = params.get('DEVICE_TYPE');
-    const validDevices = ['overear', 'bracelet', 'necklace'];
-
-    if (deviceParam && validDevices.includes(deviceParam.toLowerCase())) {
-      setDeviceType(deviceParam.toLowerCase());
-      console.log('Device type set to:', deviceParam.toLowerCase());
+    const pidParam = params.get('PID');
+    const validDeviceTypes = ['overear', 'bracelet', 'necklace']; // Define valid types
+  
+    if (!deviceParam || !validDeviceTypes.includes(deviceParam.toLowerCase())) {
+      console.error('Invalid or missing device type');
+      return;
+    }
+  
+    setDeviceType(deviceParam.toLowerCase());
+    
+    // Set PID from URL parameter if it exists
+    if (pidParam) {
+      setPid(parseInt(pidParam));
+      console.log(`PID set from URL: ${pidParam}`);
     }
   }, []);
 
@@ -306,7 +316,7 @@ const Experiment = () => {
       r.motor,
       r.response,
       r.timestamp,
-      PID,
+      pid,
       deviceType,
     ]);
   
@@ -322,8 +332,8 @@ const Experiment = () => {
     
     // Include device type, PID, and timestamp in the filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    a.download = `localization_accuracy_${deviceType}_pid${PID}_${timestamp}.csv`;
-    console.log(`Saving data for ${deviceType} with PID ${PID}`);
+    a.download = `localization_accuracy_${deviceType}_pid${pid}_${timestamp}.csv`;
+    console.log(`Saving data for ${deviceType} with PID ${pid}`);
     
     a.click();
     URL.revokeObjectURL(url);
@@ -338,6 +348,10 @@ const Experiment = () => {
           WebSocket not connected. Please check your connection.
         </div>
       )}
+
+      <div className="pid-display" style={{ textAlign: 'center', marginBottom: '10px' }}>
+        Participant ID: {pid}
+      </div>
 
       {experimentStarted && !experimentEnded && (
         <div className="stimulus-container">
