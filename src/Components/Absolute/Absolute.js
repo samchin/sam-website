@@ -17,13 +17,13 @@ const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DE
 //  function for calculating step size
 function logStaircase(index) {
   // Starting value (initial amplitude)
-  const startValue = 0.833;
+  const startValue = 0.5;
   
   // Reference value for conversion to dB (can be the same as startValue)
-  const referenceValue = 0.833;
+  const referenceValue = 0.5;
   
   // Log step size in dB (typical values range from 1-3 dB)
-  const stepSizeDB = 2.0;
+  const stepSizeDB = 3.0;
   
   // Convert to dB space, apply step reduction, convert back to linear
   // In dB space: each step reduces by stepSizeDB
@@ -199,14 +199,14 @@ const Experiment = () => {
     let direction = null;
     let isReversal = false;
     
-    // Apply the three-down one-up rule
+    // Apply the two-down one-up rule
     if (correct) {
       // Increment consecutive correct counter
       const newConsecutiveCorrect = consecutiveCorrect + 1;
       setConsecutiveCorrect(newConsecutiveCorrect);
       
       // If three consecutive correct, decrease amplitude
-      if (newConsecutiveCorrect >= 3) {
+      if (newConsecutiveCorrect >= 2) {
         // Move to next step index
         const newStepIndex = currentStepIndex + 1;
         // Set amplitude directly to the output of logStaircase for the new step index
