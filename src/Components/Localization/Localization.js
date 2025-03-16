@@ -430,12 +430,6 @@ const Experiment = () => {
         </div>
       )}
 
-      {experimentEnded && (
-        <div>
-          <p>Experiment Completed!</p>
-          <button onClick={handleSaveCSV}>Save Results</button>
-        </div>
-      )}
 
       <style jsx>{`
         .circle-button:active {
