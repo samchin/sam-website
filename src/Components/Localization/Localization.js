@@ -299,7 +299,7 @@ const Experiment = () => {
     // Debug log to check alignment
     console.log('Saving responses:', responses);
     console.log('Trial sequence:', trialSequence);
-
+  
     const headers = ['Trial', 'Motor', 'Response', 'Timestamp', 'PID', 'Device Type'];
     const rows = responses.map((r, index) => [
       index + 1,
@@ -309,21 +309,26 @@ const Experiment = () => {
       PID,
       deviceType,
     ]);
-
+  
     let csvContent = headers.join(',') + '\n';
     rows.forEach((row) => {
       csvContent += row.join(',') + '\n';
     });
-
+  
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `localization_accuracy_${deviceType}_${PID}.csv`;
+    
+    // Include device type, PID, and timestamp in the filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    a.download = `localization_accuracy_${deviceType}_pid${PID}_${timestamp}.csv`;
+    console.log(`Saving data for ${deviceType} with PID ${PID}`);
+    
     a.click();
     URL.revokeObjectURL(url);
   };
-
+  
   return (
     <div className="container">
       <h2 style={{ color: 'darkgrey' }}>Localization</h2>
