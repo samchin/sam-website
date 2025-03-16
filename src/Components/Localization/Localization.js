@@ -15,7 +15,7 @@ const WS_URL = 'ws://127.0.0.1:8000';
 const Experiment = () => {
   const [deviceType, setDeviceType] = useState('');
   const [buttonPositions, setButtonPositions] = useState([]);
-  const [trialSequence, setTrialSequence] = uMMseState([]);
+  const [trialSequence, setTrialSequence] = useState([]);
   const [currentTrialIndex, setCurrentTrialIndex] = useState(0);
   const [activeMotor, setActiveMotor] = useState(null);
   const [responses, setResponses] = useState([]);
