@@ -14,13 +14,24 @@ const INITIAL_STEP_INDEX = DEFAULT_STEP_INDEX;
 const INITIAL_ERRORS_ACCEPTED = DEFAULT_ERRORS_ACCEPTED;
 const PID = process.env.REACT_APP_PID ? parseInt(process.env.REACT_APP_PID) : DEFAULT_PID;
 
-// LogDecay function for calculating step size
-function logDecay(index) { 
-  const startValue = 0.833; 
-  const decayRatio = 0.6; 
-  return startValue * (Math.pow(decayRatio, index)); 
+//  function for calculating step size
+function logStaircase(index) {
+  // Starting value (initial amplitude)
+  const startValue = 0.5;
+  
+  // Reference value for conversion to dB (can be the same as startValue)
+  const referenceValue = 0.5;
+  
+  // Log step size in dB (typical values range from 1-3 dB)
+  const stepSizeDB = 3.0;
+  
+  // Convert to dB space, apply step reduction, convert back to linear
+  // In dB space: each step reduces by stepSizeDB
+  const levelInDB = 20 * Math.log10(startValue / referenceValue) - (index * stepSizeDB);
+  
+  // Convert back to linear units
+  return referenceValue * Math.pow(10, levelInDB / 20);
 }
-
 const Experiment = () => {
 
   const [customPID, setCustomPID] = useState(String(PID));
@@ -41,8 +52,8 @@ const Experiment = () => {
   const [lastDirection, setLastDirection] = useState(null); // 'up' or 'down'
 
   // State for tracking amplitudes and steps
-  const [bestAmplitude, setBestAmplitude] = useState(logDecay(INITIAL_STEP_INDEX));
-  const [currentAmplitude, setCurrentAmplitude] = useState(logDecay(INITIAL_STEP_INDEX));
+  const [bestAmplitude, setBestAmplitude] = useState(logStaircase(INITIAL_STEP_INDEX));
+  const [currentAmplitude, setCurrentAmplitude] = useState(logStaircase(INITIAL_STEP_INDEX));
   const [currentStepIndex, setCurrentStepIndex] = useState(INITIAL_STEP_INDEX);
   const [trialData, setTrialData] = useState([]); // {amplitude, correct, timestamp} objects
   const [experimentStarted, setExperimentStarted] = useState(false);
@@ -68,8 +79,8 @@ const Experiment = () => {
     // Start with the first actuator
     setCurrentActuatorIndex(0);
     
-    // Initialize amplitude using logDecay and the starting step index
-    const initialAmplitude = logDecay(stepIndex);
+    // Initialize amplitude using logStaircase and the starting step index
+    const initialAmplitude = logStaircase(stepIndex);
     
     setBestAmplitude(initialAmplitude);
     setExperimentStarted(true);
@@ -188,18 +199,18 @@ const Experiment = () => {
     let direction = null;
     let isReversal = false;
     
-    // Apply the three-down one-up rule
+    // Apply the two-down one-up rule
     if (correct) {
       // Increment consecutive correct counter
       const newConsecutiveCorrect = consecutiveCorrect + 1;
       setConsecutiveCorrect(newConsecutiveCorrect);
       
       // If three consecutive correct, decrease amplitude
-      if (newConsecutiveCorrect >= 3) {
+      if (newConsecutiveCorrect >= 2) {
         // Move to next step index
         const newStepIndex = currentStepIndex + 1;
-        // Set amplitude directly to the output of logDecay for the new step index
-        const newAmplitude = logDecay(newStepIndex);
+        // Set amplitude directly to the output of logStaircase for the new step index
+        const newAmplitude = logStaircase(newStepIndex);
         
         direction = 'down';
         
@@ -223,8 +234,8 @@ const Experiment = () => {
       // If incorrect, decrease step index (to return to previous step size)
       // Ensure step index doesn't go below 0
       const newStepIndex = Math.max(0, currentStepIndex - 1);
-      // Set amplitude directly to the output of logDecay for this step index
-      const newAmplitude = logDecay(newStepIndex);
+      // Set amplitude directly to the output of logStaircase for this step index
+      const newAmplitude = logStaircase(newStepIndex);
       
       direction = 'up';
       
@@ -281,7 +292,7 @@ const Experiment = () => {
         setSelectedActuator(nextActuatorIndex);
         
         // FIXED: Reset amplitude to initial value based on starting step index
-        const initialAmplitude = logDecay(stepIndex);
+        const initialAmplitude = logStaircase(stepIndex);
         setCurrentAmplitude(initialAmplitude);
         setCurrentStepIndex(stepIndex);
         setBestAmplitude(prev => Math.min(prev, initialAmplitude)); // Keep best amplitude across actuators
@@ -396,7 +407,7 @@ const Experiment = () => {
   const epsilon = 0.0001;
   
   // Get amplitude values from trial data, with fallbacks
-  const initialAmplitude = logDecay(stepIndex);
+  const initialAmplitude = logStaircase(stepIndex);
   const amplitudeValues = trialData.length > 0
     ? trialData.map(t => Math.max(t.amplitude, epsilon))
     : [Math.max(initialAmplitude, epsilon)];
@@ -474,7 +485,7 @@ const Experiment = () => {
 
     //save on another page the project configuration
     const headers2 = ["Starting Step Index", "Initial Amplitude", "Selected Actuator", "Best Amplitude", "DeviceType", "PID"];
-    const rows2 = [[stepIndex, logDecay(stepIndex), selectedActuator, bestAmplitude, deviceType, customPID]];
+    const rows2 = [[stepIndex, logStaircase(stepIndex), selectedActuator, bestAmplitude, deviceType, customPID]];
 
     csvContent += "\n\n" + headers2.join(",") + "\n";
     rows2.forEach(r => {
@@ -716,7 +727,7 @@ const Experiment = () => {
                   textAnchor="start"
                   fill="black"
                 >
-                  Step Index: {currentStepIndex}, Current Step Size: {logDecay(currentStepIndex).toFixed(4)}
+                  Step Index: {currentStepIndex}, Current Step Size: {logStaircase(currentStepIndex).toFixed(4)}
                 </text>
               </svg>
             </div>
@@ -734,7 +745,7 @@ const Experiment = () => {
               />
             </div>
             <div className="inputGroup">
-              <label>Initial Amplitude: {logDecay(stepIndex).toFixed(4)}</label>
+              <label>Initial Amplitude: {logStaircase(stepIndex).toFixed(4)}</label>
             </div>
             <div className="inputGroup">
               <label>Starting Actuator:</label>
