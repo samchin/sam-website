@@ -15,7 +15,7 @@ load_dotenv("./.env")
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 # Retrieve environment variables
-DEBUG = True
+DEBUG = False
 FREQ = int(os.getenv("REACT_APP_FREQ", 200))
 SAMPLE_RATE = int(os.getenv("REACT_APP_SAMPLE_RATE", 2000))
 NUMBER_ACTUATORS = int(os.getenv("REACT_APP_NUMBER_ACTUATOR", 0))
