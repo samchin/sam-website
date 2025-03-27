@@ -1,0 +1,1675 @@
+---
+title: "[HapticHearing] Data Analysis"
+author: "Data Analyst"
+date: "2025-03-24"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# Load required packages
+requiredPackages <- c("readr", "tidyverse", "lme4", "dplyr", "caret", "ggplot2", "purrr", "stringr", "reshape2")
+
+for(p in requiredPackages) {
+  if(!require(p, character.only = TRUE)) install.packages(p)
+  library(p, character.only = TRUE)
+}
+
+# Set global theme for plots
+my_theme <- theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 14, hjust = 0.5),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    legend.position = 'top',
+    legend.justification = 'center',
+    legend.direction = 'horizontal',
+    axis.text = element_text(size = 10, color = "grey30")
+  )
+```
+
+## Data Loading and Processing
+
+```{r load_data, echo = FALSE, warning = FALSE, include = FALSE}
+
+# Function to find the header row and properly format data
+find_header_and_transform <- function(file_path) {
+  df <- read.csv(file_path, header = FALSE, fill = TRUE, stringsAsFactors = FALSE)
+  
+  # Look for the row that contains "Timestamp" in the first column (or another known header)
+  header_row <- which(df[,1] == "Timestamp")
+  
+  if (length(header_row) == 0) {
+    cat("No valid header found in", file_path, "\n")
+    return(NULL)  # Skip file
+  }
+  
+  # Use this row as column names
+  colnames(df) <- as.character(df[header_row,])
+  
+  # Remove rows above the detected header
+  df <- df[(header_row + 1):nrow(df),]
+  
+  # Reset row numbers
+  rownames(df) <- NULL
+  
+  return(df)
+}
+
+
+# Base directory where all participant data is stored
+base_dir <- "~/Desktop/[HapticHearing] Data"
+
+# Alternative paths to try if the first one doesn't work
+alternative_paths <- c(
+  "~/Desktop/[HapticHearing] Data",
+  "/Users/$(whoami)/Desktop/[HapticHearing] Data",  # Expanded home directory
+  "./Desktop/[HapticHearing] Data",
+  "[HapticHearing] Data"
+)
+
+# Try each path until we find one that exists
+for (path in alternative_paths) {
+  cat("Checking path:", path, "\n")
+  if (dir.exists(path)) {
+    base_dir <- path
+    cat("Using directory:", base_dir, "\n")
+    break
+  }
+}
+
+# If none of the predefined paths work, ask user to specify the directory
+if (!dir.exists(base_dir)) {
+  cat("Cannot find the data directory. Please modify the script to set 'base_dir' to the correct path.\n")
+}
+
+# Get all participant folders - these are the numeric folders (e.g., "576", "272", "658")
+participant_folders <- list.dirs(path = base_dir, full.names = TRUE, recursive = FALSE)
+
+# Filter to only include directories that are named with numbers (participant IDs)
+participant_folders <- participant_folders[grepl("^[0-9]+$", basename(participant_folders))]
+
+if (length(participant_folders) == 0) {
+  cat("No valid participant folders found. Looking for participant folders with pattern ^[0-9]+$\n")
+  
+  # List all directories and files in the base directory for debugging
+  all_items <- list.files(base_dir, full.names = TRUE)
+  cat("Items in base directory:", paste(basename(all_items), collapse=", "), "\n")
+  
+  # Try without filtering for numeric names
+  participant_folders <- list.dirs(path = base_dir, full.names = TRUE, recursive = FALSE)
+  cat("All possible folders:", paste(basename(participant_folders), collapse=", "), "\n")
+}
+
+participant_ids <- basename(participant_folders)
+cat("Found", length(participant_folders), "participant folders:", paste(participant_ids, collapse=", "), "\n")
+
+# Function to extract metadata from filename
+extract_metadata <- function(filename) {
+  # Extract the basename of the file
+  basename_file <- basename(filename)
+  
+  # Pattern for files like: two_point_discrimination_overear_pid947_2025-03-23T04-05-13-148Z.csv
+  if (grepl("_overear_|_bracelet_|_necklace_", basename_file)) {
+    parts <- unlist(strsplit(basename_file, "_"))
+    
+    # Find device type
+    device_index <- which(parts %in% c("overear", "bracelet", "necklace"))
+    if (length(device_index) > 0) {
+      device_type <- parts[device_index]
+      
+      # Find test type
+      if (grepl("two_point|twopoint", basename_file, ignore.case=TRUE)) {
+        test_type <- "two_point_discrimination"
+      } else if (grepl("localization", basename_file, ignore.case=TRUE)) {
+        test_type <- "localization_accuracy"
+      } else if (grepl("absolute", basename_file, ignore.case=TRUE)) {
+        test_type <- "absolute_threshold"
+      } else {
+        test_type <- paste(parts[1:(device_index-1)], collapse="_")
+      }
+      
+      # Find PID
+      pid_part <- grep("pid", parts, value=TRUE)
+      if (length(pid_part) > 0) {
+        pid <- gsub("pid", "", pid_part)
+      } else {
+        pid <- NA
+      }
+      
+      return(list(
+        test_type = test_type,
+        device_type = device_type,
+        pid = pid,
+        timestamp = NA
+      ))
+    }
+  }
+  
+  # If the structured approach didn't work, try to extract information directly from the filename
+  if (grepl("bracelet", basename_file, ignore.case=TRUE)) {
+    device_type <- "bracelet"
+  } else if (grepl("necklace", basename_file, ignore.case=TRUE)) {
+    device_type <- "necklace"
+  } else if (grepl("overear", basename_file, ignore.case=TRUE)) {
+    device_type <- "overear"
+  } else {
+    device_type <- NA
+  }
+  
+  if (grepl("two_point|twopoint", basename_file, ignore.case=TRUE)) {
+    test_type <- "two_point_discrimination"
+  } else if (grepl("localization", basename_file, ignore.case=TRUE)) {
+    test_type <- "localization_accuracy"
+  } else if (grepl("absolute", basename_file, ignore.case=TRUE)) {
+    test_type <- "absolute_threshold"
+  } else {
+    test_type <- NA
+  }
+  
+  # Try to extract PID
+  pid_match <- regexpr("pid\\d+", basename_file)
+  if (pid_match > 0) {
+    pid_text <- regmatches(basename_file, pid_match)
+    pid <- gsub("pid", "", pid_text)
+  } else {
+    pid <- NA
+  }
+  
+  return(list(
+    test_type = test_type,
+    device_type = device_type,
+    pid = pid,
+    timestamp = NA
+  ))
+}
+
+# Function to find all CSV files that match a specific pattern
+find_csv_files <- function(folder_path, pattern) {
+  # Get all CSV files in the directory (non-recursive, as we know the structure)
+  all_files <- list.files(folder_path, pattern = "\\.csv$", full.names = TRUE, recursive = FALSE)
+  cat("  Found", length(all_files), "CSV files in", folder_path, "\n")
+  
+  # If no files found and this is a participant folder, try different approaches
+  if (length(all_files) == 0 && grepl("[0-9]+$", basename(folder_path))) {
+    cat("  No CSV files found directly in participant folder. Checking subdirectories...\n")
+    
+    # Try recursive search
+    all_files <- list.files(folder_path, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
+    cat("  Found", length(all_files), "CSV files with recursive search\n")
+  }
+  
+  # Print file list for debugging
+  if (length(all_files) > 0) {
+    cat("  CSV files:", paste(basename(all_files), collapse=", "), "\n")
+  }
+  
+  # Extract only those matching the pattern
+  files_matching <- all_files[grepl(pattern, all_files, ignore.case = TRUE)]
+  cat("  Files matching pattern '", pattern, "': ", length(files_matching), "\n")
+  
+  if (length(files_matching) > 0) {
+    cat("  Matching files:", paste(basename(files_matching), collapse=", "), "\n")
+  }
+  
+  return(files_matching)
+}
+
+# Create empty lists for each data type
+localization_data <- list()
+two_point_data <- list()
+absolute_data <- list()
+
+# Loop through each participant folder and extract data
+for (pid_folder in participant_folders) {
+  pid <- basename(pid_folder)
+  
+  cat("Processing participant/folder:", pid, "\n")
+  
+  # Debug: list all CSV files in the folder
+  all_csv_files <- list.files(pid_folder, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
+  cat("  Found", length(all_csv_files), "CSV files in total\n")
+  if (length(all_csv_files) > 0) {
+    cat("  First few files:", paste(basename(head(all_csv_files)), collapse = ", "), "\n")
+  }
+  
+  # Find and process localization data
+  loc_files <- find_csv_files(pid_folder, "localization")
+  cat("  Found", length(loc_files), "localization files\n")
+  
+  for (file in loc_files) {
+    cat("  Processing localization file:", basename(file), "\n")
+    metadata <- extract_metadata(file)
+    device_type <- metadata$device_type
+    
+    # If metadata extraction failed, try to guess from filename
+    if (is.na(device_type)) {
+      filename <- basename(file)
+      if (grepl("bracelet", filename, ignore.case = TRUE)) {
+        device_type <- "bracelet"
+      } else if (grepl("necklace", filename, ignore.case = TRUE)) {
+        device_type <- "necklace"
+      } else if (grepl("overear", filename, ignore.case = TRUE)) {
+        device_type <- "overear"
+      } else {
+        device_type <- "unknown"
+      }
+      cat("    Guessed device type from filename:", device_type, "\n")
+    }
+    
+    tryCatch({
+      # Try reading with different options
+      data <- read_csv(file, show_col_types = FALSE)
+      
+      # Add PID and device type columns if they don't exist
+      if (!"PID" %in% names(data)) data$PID <- pid
+      data$device_type <- device_type
+      #if (!"device_type" %in% names(data)) data$device_type <- device_type
+      
+      # Check for correct columns
+      expected_cols <- c("Trial", "Motor", "Response")
+      missing_cols <- expected_cols[!expected_cols %in% names(data)]
+      
+      if (length(missing_cols) > 0) {
+        cat("    Warning: Missing expected columns:", paste(missing_cols, collapse=", "), "\n")
+        cat("    Available columns:", paste(names(data), collapse=", "), "\n")
+      } else {
+        # Add to the appropriate list
+        localization_data[[length(localization_data) + 1]] <- data
+        cat("    Successfully loaded localization data for device:", device_type, "\n")
+      }
+    }, error = function(e) {
+      cat("    Error loading file:", file, "Error:", e$message, "\n")
+      
+      # Try alternative reading method if first attempt fails
+      tryCatch({
+        cat("    Attempting alternative reading method...\n")
+        data <- read.csv(file, stringsAsFactors = FALSE)
+        data <- as_tibble(data)
+        
+        # Add PID and device type columns if they don't exist
+        if (!"PID" %in% names(data)) data$PID <- pid
+        if (!"device_type" %in% names(data)) data$device_type <- device_type
+        
+        # Check for correct columns
+        expected_cols <- c("Trial", "Motor", "Response")
+        missing_cols <- expected_cols[!expected_cols %in% names(data)]
+        
+        if (length(missing_cols) > 0) {
+          cat("    Warning: Missing expected columns:", paste(missing_cols, collapse=", "), "\n")
+          cat("    Available columns:", paste(names(data), collapse=", "), "\n")
+        } else {
+          # Add to the appropriate list
+          localization_data[[length(localization_data) + 1]] <- data
+          cat("    Successfully loaded with alternative method\n")
+        }
+      }, error = function(e2) {
+        cat("    Alternative method also failed:", e2$message, "\n")
+      })
+    })
+  }
+  
+  # Find and process two-point discrimination data
+  tp_files <- find_csv_files(pid_folder, "two[_\\-]point|twopoint")
+  cat("  Found", length(tp_files), "two-point discrimination files\n")
+  
+  
+  for (file in tp_files) {
+    cat("  Processing two-point file:", basename(file), "\n")
+    metadata <- extract_metadata(file)
+    device_type <- metadata$device_type
+    
+    # If metadata extraction failed, try to guess from filename
+    if (is.na(device_type)) {
+      filename <- basename(file)
+      if (grepl("bracelet", filename, ignore.case = TRUE)) {
+        device_type <- "bracelet"
+      } else if (grepl("necklace", filename, ignore.case = TRUE)) {
+        device_type <- "necklace"
+      } else if (grepl("overear", filename, ignore.case = TRUE)) {
+        device_type <- "overear"
+      } else {
+        device_type <- "unknown"
+      }
+      cat("    Guessed device type from filename:", device_type, "\n")
+    }
+    
+    tryCatch({
+      # Try reading with different options
+      data <- read_csv(file, show_col_types = FALSE)
+      
+      # Add PID and device type columns
+      data$PID <- pid
+      data$device_type <- device_type
+      
+      # Print data structure for debugging
+      cat("    Data columns:", paste(names(data), collapse = ", "), "\n")
+      cat("    Number of rows:", nrow(data), "\n")
+      
+      # Add to the appropriate list
+      two_point_data[[length(two_point_data) + 1]] <- data
+      
+      cat("    Successfully loaded two-point discrimination data for device:", device_type, "\n")
+    }, error = function(e) {
+      cat("    Error loading file:", file, "Error:", e$message, "\n")
+      
+      # Try alternative reading method if first attempt fails
+      tryCatch({
+        cat("    Attempting alternative reading method...\n")
+        data <- read.csv(file, stringsAsFactors = FALSE)
+        data <- as_tibble(data)
+        data$PID <- pid
+        data$device_type <- device_type
+        
+        # Add to the appropriate list
+        two_point_data[[length(two_point_data) + 1]] <- data
+        
+        cat("    Successfully loaded with alternative method\n")
+      }, error = function(e2) {
+        cat("    Alternative method also failed:", e2$message, "\n")
+      })
+    })
+  }
+  
+  # Find and process absolute threshold data
+  abs_files <- find_csv_files(pid_folder, "absolute")
+  cat("  Found", length(abs_files), "absolute threshold files\n")
+  
+    # Identify absolute threshold files
+  abs_files <- find_csv_files(pid_folder, "absolute")
+  cat("  Found", length(abs_files), "absolute threshold files\n")
+  
+  # Apply transformation to load and clean data
+  absolute_data <- lapply(abs_files, find_header_and_transform)
+  
+  
+  # If any transformations were successful, combine data
+  if (length(absolute_data) > 0) {
+    absolute_combined <- bind_rows(absolute_data)
+  } else {
+    absolute_combined <- NULL
+    cat("No absolute threshold datasets were successfully transformed\n")
+  }
+  
+    
+  for (file in abs_files) {
+    cat("  Processing absolute threshold file:", basename(file), "\n")
+    metadata <- extract_metadata(file)
+    device_type <- metadata$device_type
+    
+    # If metadata extraction failed, try to guess from filename
+    if (is.na(device_type)) {
+      filename <- basename(file)
+      if (grepl("bracelet", filename, ignore.case = TRUE)) {
+        device_type <- "bracelet"
+      } else if (grepl("necklace", filename, ignore.case = TRUE)) {
+        device_type <- "necklace"
+      } else if (grepl("overear", filename, ignore.case = TRUE)) {
+        device_type <- "overear"
+      } else {
+        device_type <- "unknown"
+      }
+      cat("    Guessed device type from filename:", device_type, "\n")
+    }
+    
+    tryCatch({
+      # Try reading with different options
+      data <- read_csv(file, show_col_types = FALSE)
+      
+      # Add PID and device type columns
+      data$PID <- pid
+      data$device_type <- device_type
+      
+      # Print data structure for debugging
+      cat("    Data columns:", paste(names(data), collapse = ", "), "\n")
+      cat("    Number of rows:", nrow(data), "\n")
+      
+      # Add to the appropriate list
+      absolute_data[[length(absolute_data) + 1]] <- data
+      
+      cat("    Successfully loaded absolute threshold data for device:", device_type, "\n")
+    }, error = function(e) {
+      cat("    Error loading file:", file, "Error:", e$message, "\n")
+      
+      # Try alternative reading method if first attempt fails
+      tryCatch({
+        cat("    Attempting alternative reading method...\n")
+        data <- read.csv(file, stringsAsFactors = FALSE)
+        data <- as_tibble(data)
+        data$PID <- pid
+        data$device_type <- device_type
+        
+        # Add to the appropriate list
+        absolute_data[[length(absolute_data) + 1]] <- data
+        
+        cat("    Successfully loaded with alternative method\n")
+      }, error = function(e2) {
+        cat("    Alternative method also failed:", e2$message, "\n")
+      })
+    })
+  }
+}
+
+```
+
+```{r clean_data, echo = FALSE, warning = FALSE, message = FALSE}
+# Combine data for each test type
+if (length(localization_data) > 0) {
+  localization_combined <- bind_rows(localization_data)
+  
+  # Standardize column names - make sure we're using lowercase device_type
+  # This handles any potential mixed-case issues in the source data
+  if ("DeviceType" %in% names(localization_combined)) {
+    localization_combined$device_type <- localization_combined$DeviceType
+    localization_combined <- localization_combined %>% select(-DeviceType)
+  } else if ("Device_Type" %in% names(localization_combined)) {
+    localization_combined$device_type <- localization_combined$Device_Type
+    localization_combined <- localization_combined %>% select(-Device_Type)
+  }
+  
+  # Clean up device_type column
+  localization_combined$device_type <- tolower(localization_combined$device_type)
+  localization_combined$device_type <- ifelse(
+    !localization_combined$device_type %in% c("bracelet", "necklace", "overear"),
+    NA,
+    localization_combined$device_type
+  )
+  
+  # Remove rows with NA device types
+  localization_combined <- localization_combined %>% filter(!is.na(device_type))
+  
+  # CRITICAL: Calculate Correct column for localization data
+  localization_combined$Correct <- ifelse(
+    localization_combined$Motor == localization_combined$Response, 1, 0
+  )
+  
+  # Summary of device types
+  cat("Device types distribution:\n")
+  print(table(localization_combined$device_type, useNA = "ifany"))
+  
+  cat("Total localization data entries:", nrow(localization_combined), "\n")
+} else {
+  localization_combined <- NULL
+  cat("No localization data found.\n")
+}
+
+if (length(two_point_data) > 0) {
+  two_point_combined <- bind_rows(two_point_data)
+  
+  # Clean up Device_Type column
+  two_point_combined$device_type <- tolower(two_point_combined$device_type)
+  two_point_combined$device_type <- ifelse(
+    !two_point_combined$device_type %in% c("bracelet", "necklace", "overear"),
+    NA,
+    two_point_combined$device_type
+  )
+  
+  cat("Total two-point discrimination data entries:", nrow(two_point_combined), "\n")
+} else {
+  two_point_combined <- NULL
+  cat("No two-point discrimination data found.\n")
+}
+
+
+
+
+
+```
+
+## Localization Accuracy Analysis
+
+```{r localization_analysis, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Double-check that we have Correct column
+if (!is.null(localization_combined) && !"Correct" %in% names(localization_combined)) {
+  localization_combined$Correct <- ifelse(
+    localization_combined$Motor == localization_combined$Response, 1, 0
+  )
+}
+
+# Accuracy by motor position for each device type
+accuracy_by_motor <- localization_combined %>%
+  group_by(device_type, Motor) %>%
+  summarise(
+    Accuracy = mean(Correct, na.rm = TRUE),
+    SE = sd(Correct, na.rm = TRUE) / sqrt(n()),
+    n = n()
+  )
+
+# Plot accuracy by motor position for each device
+ggplot(accuracy_by_motor, aes(x = Motor, y = Accuracy, color = device_type)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  labs(
+    title = "Localization Accuracy by Motor Position",
+    x = "Motor Position",
+    y = "Average Accuracy"
+  ) +
+  facet_wrap(~ device_type) +
+  my_theme
+
+# First, check how many rows have NA device types
+na_device_count <- sum(is.na(localization_combined$device_type))
+cat("Number of rows with NA device_type:", na_device_count, "\n")
+
+# Make sure all three device types are considered, even if they don't appear in the data
+expected_devices <- c("bracelet", "necklace", "overear")
+existing_devices <- unique(localization_combined$device_type[!is.na(localization_combined$device_type)])
+devices <- unique(c(expected_devices, existing_devices))
+
+cat("Device types to process:", paste(devices, collapse=", "), "\n")
+
+# Process each device type
+for (device in devices) {
+  # This ensures we only process valid device types
+  device_data <- localization_combined %>% 
+    filter(device_type == device)
+  
+  cat("\n=====================================\n")
+  cat("DEVICE:", device, "\n")
+  cat("=====================================\n")
+  cat("Number of rows for this device:", nrow(device_data), "\n")
+  
+  # Only proceed if we have data
+  if (nrow(device_data) > 0) {
+    # Get all unique values from both Motor and Response
+    all_levels <- sort(unique(c(device_data$Motor, device_data$Response)))
+    
+    # Create factors with the same levels
+    device_data$Motor_factor <- factor(device_data$Motor, levels = all_levels)
+    device_data$Response_factor <- factor(device_data$Response, levels = all_levels)
+    
+    # Show the confusion matrix
+    cat("\nConfusion Matrix for", device, "device:\n")
+    
+    # Use tryCatch to handle potential errors
+    tryCatch({
+      confusion <- confusionMatrix(data = device_data$Response_factor,
+                                  reference = device_data$Motor_factor)
+      print(confusion)
+      
+      # Visualize confusion matrix
+      conf_mat <- as.data.frame(confusion$table)
+      conf_mat_wide <- dcast(conf_mat, Prediction ~ Reference, value.var = "Freq")
+      conf_mat_matrix <- as.matrix(conf_mat_wide[, -1])
+      rownames(conf_mat_matrix) <- conf_mat_wide$Prediction
+      
+      # Normalize by reference (true) class
+      conf_mat_norm <- sweep(conf_mat_matrix, 2, colSums(conf_mat_matrix), "/")
+      
+      # Convert to long format for ggplot
+      conf_mat_long <- melt(conf_mat_norm)
+      colnames(conf_mat_long) <- c("Predicted", "Actual", "Proportion")
+      
+      # Create heatmap visualization
+      p <- ggplot(conf_mat_long, aes(x = Actual, y = Predicted, fill = Proportion)) +
+        geom_tile() +
+        geom_text(aes(label = sprintf("%.2f", Proportion)), size = 3) +
+        scale_fill_gradient(low = "white", high = "blue") +
+        #the labels are 1 through 6 starting from the bottom left cell
+        labs(
+          title = paste("Confusion Matrix -", device, "Device"),
+          x = "Actual Motor Position",
+          y = "Predicted Motor Position",
+          fill = "Proportion"
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        scale_x_discrete(limits = rev(levels(conf_mat_long$Actual))) +
+        scale_y_discrete(limits = levels(conf_mat_long$Predicted))
+      
+      print(p)
+        
+    }, error = function(e) {
+      cat("Error creating confusion matrix for", device, "device:", e$message, "\n")
+      cat("Falling back to base R table method\n")
+      
+      # Create a simple confusion matrix using table()
+      conf_table <- table(Predicted = device_data$Response, Actual = device_data$Motor)
+      print(conf_table)
+      
+      # Calculate accuracy manually
+      accuracy <- sum(diag(conf_table)) / sum(conf_table)
+      cat("Accuracy:", round(accuracy * 100, 2), "%\n")
+      
+      # Visualize using the raw table
+      conf_norm <- prop.table(conf_table, margin = 2)  # Normalize by column (actual)
+      conf_norm_df <- as.data.frame(conf_norm)
+      names(conf_norm_df) <- c("Predicted", "Actual", "Proportion")
+      
+      # Create heatmap visualization with base R table
+      p <- ggplot(conf_norm_df, aes(x = Actual, y = Predicted, fill = Proportion)) +
+        geom_tile() +
+        geom_text(aes(label = sprintf("%.2f", Proportion)), size = 3) +
+        scale_fill_gradient(low = "white", high = "blue") +
+        labs(
+          title = paste("Confusion Matrix -", device, "Device"),
+          x = "Actual Motor Position",
+          y = "Predicted Motor Position",
+          fill = "Proportion"
+        ) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      
+      print(p)
+    })
+    
+    # Display data distribution for this device
+    cat("\nMotor distribution for", device, "device:\n")
+    print(table(device_data$Motor))
+    
+    cat("\nResponse distribution for", device, "device:\n")
+    print(table(device_data$Response))
+    
+  } else {
+    cat("No data available for device type:", device, "\n")
+  }
+}
+
+# Accuracy by participant
+accuracy_by_participant <- localization_combined %>%
+  group_by(PID, device_type) %>%
+  summarise(
+    Accuracy = mean(Correct, na.rm = TRUE),
+    n = n()
+  )
+
+# Filter out any incorrect device types
+accuracy_by_participant <- accuracy_by_participant %>%
+  filter(device_type %in% c("bracelet", "necklace", "overear"))
+
+# Clean up device_type to ensure consistent naming
+accuracy_by_participant$device_type <- tolower(accuracy_by_participant$device_type)
+
+# Visualize accuracy by participant
+ggplot(accuracy_by_participant, aes(x = factor(PID), y = Accuracy, fill = device_type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  scale_fill_manual(values = c("bracelet" = "#8B5A00", "necklace" = "#008B45", "overear" = "#00688B")) +
+  labs(
+    title = "Localization Accuracy by Participant",
+    x = "Participant ID",
+    y = "Average Accuracy"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+## Two-Point Discrimination Analysis
+
+```{r two_point_analysis, echo = FALSE, warning = FALSE, message = FALSE}
+if (!is.null(two_point_combined)) {
+  # Ensure data types are correct
+  two_point_combined$FirstMotor <- as.numeric(two_point_combined$FirstMotor)
+  two_point_combined$SecondMotor <- as.numeric(two_point_combined$SecondMotor)
+  two_point_combined$Correct <- as.numeric(two_point_combined$Correct)
+  
+  # Overall accuracy
+  overall_accuracy <- mean(two_point_combined$Correct, na.rm = TRUE)
+  cat("Overall two-point discrimination accuracy:", round(overall_accuracy * 100, 2), "%\n")
+  
+  # Accuracy by device type
+  accuracy_by_device <- two_point_combined %>%
+    filter(device_type %in% c("bracelet", "necklace", "overear")) %>%
+    group_by(device_type) %>%
+    summarise(
+      Accuracy = mean(Correct, na.rm = TRUE),
+      SE = sd(Correct, na.rm = TRUE) / sqrt(n()),
+      n = n()
+    )
+  
+  cat("\nTwo-point discrimination accuracy by device type:\n")
+  print(accuracy_by_device)
+  
+  # Plot accuracy by device type
+  ggplot(accuracy_by_device, aes(x = device_type, y = Accuracy, fill = device_type)) +
+    geom_bar(stat = "identity") +
+    geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
+    scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    scale_fill_manual(values = c("bracelet" = "#8B5A00", "necklace" = "#008B45", "overear" = "#00688B")) +
+    labs(
+      title = "Two-Point Discrimination Accuracy by Device Type",
+      x = "Device Type",
+      y = "Average Accuracy"
+    ) +
+    my_theme
+  
+  # Calculate distance between motors
+  two_point_combined$Distance <- abs(two_point_combined$FirstMotor - two_point_combined$SecondMotor)
+  
+  # Accuracy by distance between motors
+  accuracy_by_distance <- two_point_combined %>%
+    group_by(device_type, Distance) %>%
+    summarise(
+      Accuracy = mean(Correct, na.rm = TRUE),
+      SE = sd(Correct, na.rm = TRUE) / sqrt(n()),
+      n = n()
+    )
+  
+  # Plot accuracy by distance
+  ggplot(accuracy_by_distance, aes(x = Distance, y = Accuracy, color = device_type)) +
+    geom_point(size = 3) +
+    geom_line(aes(group = device_type)) +
+    geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
+    scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    labs(
+      title = "Two-Point Discrimination Accuracy by Motor Distance",
+      x = "Distance Between Motors",
+      y = "Average Accuracy"
+    ) +
+    facet_wrap(~ device_type) +
+    my_theme
+  
+  # Accuracy by first motor position
+  accuracy_by_first_motor <- two_point_combined %>%
+    group_by(device_type, FirstMotor) %>%
+    summarise(
+      Accuracy = mean(Correct, na.rm = TRUE),
+      SE = sd(Correct, na.rm = TRUE) / sqrt(n()),
+      n = n()
+    )
+  
+  # Plot accuracy by first motor position
+  ggplot(accuracy_by_first_motor, aes(x = FirstMotor, y = Accuracy, color = device_type)) +
+    geom_point(size = 3) +
+    geom_line(aes(group = device_type)) +
+    geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
+    scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    labs(
+      title = "Two-Point Discrimination Accuracy by First Motor Position",
+      x = "First Motor Position",
+      y = "Average Accuracy"
+    ) +
+    facet_wrap(~ device_type) +
+    my_theme
+  
+  # Accuracy by participant
+  accuracy_by_participant <- two_point_combined %>%
+    group_by(PID, device_type) %>%
+    summarise(
+      Accuracy = mean(Correct, na.rm = TRUE),
+      n = n()
+    )
+  
+  # Visualize accuracy by participant
+  ggplot(accuracy_by_participant, aes(x = PID, y = Accuracy, fill = device_type)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    labs(
+      title = "Two-Point Discrimination Accuracy by Participant",
+      x = "Participant ID",
+      y = "Average Accuracy"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+}
+```
+
+## Absolute Threshold Analysis
+
+```{r absolute_threshold_analysis, echo = FALSE, warning = FALSE, message = FALSE}
+# Load required libraries
+library(tidyverse)
+
+# Function to find header row and transform data properly
+find_header_and_transform <- function(df) {
+  header_row <- which(df[,1] == "Timestamp")
+  
+  if(length(header_row) == 0) {
+    for(i in 1:ncol(df)) {
+      header_candidates <- which(df[,i] == "Timestamp")
+      if(length(header_candidates) > 0) {
+        header_row <- header_candidates[1]
+        break
+      }
+    }
+  }
+  
+  if(length(header_row) == 0) {
+    return(NULL)  # Return NULL if no header found
+  }
+  
+  names(df) <- as.character(df[header_row,])
+  df <- df[(header_row+1):nrow(df),]
+  rownames(df) <- NULL
+  return(df)
+}
+
+# Function to extract device type
+get_device_type <- function(df, filename) {
+  if("DeviceType" %in% names(df)) {
+    device_types <- unique(df$DeviceType[!is.na(df$DeviceType)])
+    if(length(device_types) > 0) {
+      return(device_types[1])
+    }
+  }
+  
+  device_keywords <- c("bracelet", "necklace", "overear")
+  for(keyword in device_keywords) {
+    for(col in names(df)) {
+      if(is.character(df[[col]]) || is.factor(df[[col]])) {
+        if(any(grepl(keyword, df[[col]], ignore.case = TRUE))) {
+          return(keyword)
+        }
+      }
+    }
+  }
+  
+  for(keyword in device_keywords) {
+    if(grepl(keyword, filename, ignore.case = TRUE)) {
+      return(keyword)
+    }
+  }
+  
+  return("Unknown Device")
+}
+
+# Set folder path
+base_folder <- "~/Desktop/[HapticHearing] Data/"
+participant_folders <- list.dirs(path = base_folder, full.names = TRUE, recursive = FALSE)
+
+# Initialize empty list to store data
+data_list <- list()
+
+# Process each participant folder
+for (participant_folder in participant_folders) {
+  pid <- basename(participant_folder)
+  absolute_folder <- participant_folder  # Look directly in participant's folder
+  
+  if (!dir.exists(absolute_folder)) {
+    next  # Skip if Absolute folder does not exist
+  }
+  
+  csv_files <- list.files(path = absolute_folder, pattern = "absolute_threshold_.*\\.csv$|Absolute.*\\.csv$", full.names = TRUE, ignore.case = TRUE)
+  
+  for (csv_file in csv_files) {
+    df <- read.csv(csv_file, header = FALSE, fill = TRUE, stringsAsFactors = FALSE)
+    df <- find_header_and_transform(df)
+    
+    if (!is.null(df)) {
+      device_type <- get_device_type(df, csv_file)
+      df$PID <- pid
+      df$device_type <- device_type
+      data_list[[length(data_list) + 1]] <- df
+    }
+  }
+}
+
+# Verify loaded datasets
+cat("Loaded", length(data_list), "datasets\n")
+
+# Initialize threshold_results as empty dataframe with correct structure
+threshold_results <- data.frame(
+  PID = character(),
+  device_type = character(),
+  Actuator = character(),
+  Threshold = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Now process each dataset separately
+for (i in seq_along(data_list)) {
+  df <- data_list[[i]]
+  
+  device_type <- unique(df$device_type)
+  pid <- unique(df$PID)
+  cat("\nProcessing participant", pid, "with device", device_type, "\n")
+  
+  # Ensure necessary columns exist
+  required_columns <- c("Actuator", "Amplitude", "Correct", "IsReversal")
+  missing_columns <- setdiff(required_columns, names(df))
+  if (length(missing_columns) > 0) {
+    cat("Skipping dataset due to missing columns:", paste(missing_columns, collapse = ", "), "\n")
+    next
+  }
+
+  # Ensure numeric types for critical columns
+  df$Amplitude <- as.numeric(df$Amplitude)
+  
+  # Convert Type column to uppercase if it exists
+  if("Type" %in% names(df)) {
+    df$Type <- toupper(as.character(df$Type))
+    # Filter for GUESS rows only if Type column exists
+    df <- df %>% filter(Type == "GUESS")
+  }
+  
+  # Filter out data with missing actuator info or empty actuator values
+  df <- df %>% 
+    filter(!is.na(Actuator) & Actuator != "" & !is.null(Actuator))
+  
+  # Get unique actuators
+  actuators <- unique(df$Actuator)
+  actuator_thresholds <- list()
+  actuator_plots <- list()
+  
+  for (actuator in actuators) {
+    # Subset data for this actuator
+    actuator_data <- df %>% filter(Actuator == actuator)
+    
+    # Skip actuators with too few trials
+    if (nrow(actuator_data) < 5) {
+      cat("Skipping actuator", actuator, "with only", nrow(actuator_data), "trials\n")
+      next
+    }
+    
+    actuator_data$Trial <- seq_len(nrow(actuator_data))
+    
+    # Improved reversal detection - try multiple approaches
+    # First, look for TRUE values in IsReversal column
+    reversal_rows <- tryCatch({
+      if (is.logical(actuator_data$IsReversal)) {
+        actuator_data %>% filter(IsReversal == TRUE)
+      } else if (is.character(actuator_data$IsReversal)) {
+        actuator_data %>% filter(toupper(IsReversal) %in% c("TRUE", "T", "YES", "Y"))
+      } else {
+        # If IsReversal is numeric, treat non-zero as TRUE
+        actuator_data %>% filter(as.numeric(IsReversal) != 0)
+      }
+    }, error = function(e) {
+      # Fallback method: look for amplitude direction changes
+      actuator_data$diff <- c(0, diff(actuator_data$Amplitude))
+      actuator_data$diff_sign <- sign(actuator_data$diff)
+      actuator_data$sign_change <- c(0, abs(diff(actuator_data$diff_sign)))
+      reversal_indices <- which(actuator_data$sign_change == 2)
+      if (length(reversal_indices) > 0) {
+        actuator_data[reversal_indices, ]
+      } else {
+        data.frame()  # Empty dataframe if no reversals found
+      }
+    })
+    
+    reversal_count <- nrow(reversal_rows)
+    cat("  Actuator", actuator, "has", reversal_count, "reversal points\n")
+    
+    incorrect_data <- tryCatch({
+      if (is.logical(actuator_data$Correct)) {
+        actuator_data %>% filter(Correct == FALSE)
+      } else if (is.character(actuator_data$Correct)) {
+        actuator_data %>% filter(toupper(Correct) %in% c("FALSE", "F", "NO", "N"))
+      } else {
+        # If Correct is numeric, treat zero as FALSE
+        actuator_data %>% filter(as.numeric(Correct) == 0)
+      }
+    }, error = function(e) {
+      data.frame()  # Empty dataframe if error
+    })
+    
+    # Compute threshold (average of last 4 reversals or all if fewer)
+    if (reversal_count >= 4) {
+      # Make sure we use the last 4 reversals by sorting first
+      reversal_rows <- reversal_rows %>% arrange(Trial)
+      last_four <- tail(reversal_rows, 4)
+      avg_value <- mean(last_four$Amplitude, na.rm = TRUE)
+      cat("    Using last 4 reversals. Amplitudes:", paste(last_four$Amplitude, collapse=", "), "\n")
+      cat("    Calculated threshold:", avg_value, "\n")
+    } else if (reversal_count > 0) {
+      avg_value <- mean(reversal_rows$Amplitude, na.rm = TRUE)
+      cat("    Using all available reversals. Amplitudes:", paste(reversal_rows$Amplitude, collapse=", "), "\n")
+      cat("    Calculated threshold:", avg_value, "\n")
+    } else {
+      avg_value <- NA
+      cat("    No reversals found - threshold cannot be calculated\n")
+    }
+    
+    actuator_thresholds[[as.character(actuator)]] <- avg_value
+    
+      # Create plot
+    p <- ggplot(actuator_data, aes(x = Trial, y = Amplitude, group = 1)) +  # Ensure group=1 for connecting trials
+      geom_line(color = "black") +  # Line connecting trials
+      geom_point(size = 3) +  # All points
+      labs(
+        title = paste("Amplitude vs Trial:", device_type, "- Actuator", actuator, "- PID", pid),
+        x = "Trial",
+        y = "Amplitude",
+        color = NULL,
+        caption = paste0("Final Reversals Avg: ", ifelse(!is.na(avg_value), round(avg_value, 4), "N/A"))
+      ) + theme_minimal()
+    
+    # Add reversal points first (so they'll be on the bottom layer)
+    if (reversal_count > 0) {
+      p <- p + geom_point(data = reversal_rows, aes(color = "Reversal"), size = 4, shape = 17)
+    }
+    
+    # Add incorrect points on top with smaller size and red color
+    if (nrow(incorrect_data) > 0) {
+      p <- p + geom_point(data = incorrect_data, aes(color = "Incorrect"), size = 2.5, shape = 16)
+    }
+    
+    # Add threshold line if available
+    if (!is.na(avg_value)) {
+      p <- p + geom_hline(yintercept = avg_value, color = "blue", linetype = "dashed", size = 1)
+    }
+    
+    # Add color scale with red for incorrect and light blue for reversals
+    p <- p + scale_color_manual(values = c("Incorrect" = "red", "Reversal" = "blue"))
+    
+    # Store for later combined plotting
+    actuator_plots[[as.character(actuator)]] <- actuator_data
+    
+    # Print individual actuator plot
+    print(p)
+    # Add to threshold results
+    threshold_results <- rbind(threshold_results, data.frame(
+      PID = pid,
+      device_type = device_type,
+      Actuator = as.character(actuator),
+      Threshold = avg_value,
+      stringsAsFactors = FALSE
+    ))
+  }
+  
+  # Create separate colorful overlay graph for each participant-device
+  if (length(actuator_plots) > 0) {
+    combined_data <- do.call(rbind, actuator_plots)
+    overlay_title <- paste("Amplitude vs Trial (All Actuators) - Device:", device_type, "- PID", pid)
+    overlay_plot <- ggplot(combined_data, aes(x = Trial, y = Amplitude, color = factor(Actuator))) +
+      geom_line() +
+      geom_point(size = 1) +
+      labs(title = overlay_title, x = "Trial", y = "Amplitude", color = "Actuator") +
+      theme_minimal()
+    print(overlay_plot)
+  }
+}
+
+# Filter out NA thresholds for plotting
+threshold_results_filtered <- threshold_results %>% filter(!is.na(Threshold))
+cat("\nFinal threshold results summary (filtered):\n")
+print(head(threshold_results_filtered))
+
+# Create separate threshold summary graphs for each device type
+for (device in unique(threshold_results_filtered$device_type)) {
+  device_data <- threshold_results_filtered %>% filter(device_type == device)
+  
+  # Skip if there aren't enough data points
+  if (nrow(device_data) < 2) {
+    cat("Skipping summary plot for device", device, "- not enough data points\n")
+    next
+  }
+  
+p <- ggplot(device_data, aes(x = Actuator, y = Threshold)) +
+  geom_boxplot(fill = "lightblue", color = "darkblue") +
+  labs(title = paste("Threshold Distribution by Actuator for Device:", device), 
+       x = "Actuator", 
+       y = "Threshold") +
+  theme_minimal()
+print(p)}
+
+# Summary stats by device type
+cat("\nSummary statistics by device type:\n")
+device_summary <- threshold_results_filtered %>%
+  group_by(device_type) %>%
+  summarise(
+    Mean_Threshold = mean(Threshold, na.rm = TRUE),
+    SD = sd(Threshold, na.rm = TRUE),
+    Min = min(Threshold, na.rm = TRUE),
+    Max = max(Threshold, na.rm = TRUE),
+    N = n()
+  )
+print(device_summary)
+
+# Create device comparison plot
+ggplot(device_summary, aes(x = device_type, y = Mean_Threshold, fill = device_type)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = Mean_Threshold - SD, ymax = Mean_Threshold + SD), width = 0.2) +
+  labs(title = "Average Threshold by Device Type",
+       x = "Device Type",
+       y = "Mean Threshold") +
+  theme_bw()+
+  theme_minimal()
+
+```
+
+
+
+```{r device actuator pairs, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Before combining the data, we need to reset trial numbers by actuator for each participant
+
+# Process each dataset to extract and normalize trajectory information
+normalized_trajectory_data <- data.frame()
+
+for (i in seq_along(data_list)) {
+  df <- data_list[[i]]
+  
+  # Skip datasets without required columns
+  required_columns <- c("Actuator", "Amplitude")
+  missing_columns <- setdiff(required_columns, names(df))
+  if (length(missing_columns) > 0) {
+    next
+  }
+  
+  # Ensure we have device type and PID
+  if (!"device_type" %in% names(df) || !"PID" %in% names(df)) {
+    next
+  }
+  
+  # Filter out NA or invalid actuators
+  df <- df %>% 
+    filter(!is.na(Actuator) & Actuator != "" & !is.null(Actuator))
+  
+  # Reset trial numbers for each participant-actuator combination
+  df <- df %>%
+    group_by(PID, device_type, Actuator) %>%
+    mutate(
+      OriginalTrial = if("Trial" %in% names(.)) Trial else row_number(),
+      Trial = row_number() # Reset trial numbers starting at 1
+    ) %>%
+    ungroup()
+  
+  # Add to combined dataset
+  normalized_trajectory_data <- rbind(normalized_trajectory_data, df)
+}
+
+# Ensure Amplitude is numeric
+normalized_trajectory_data$Amplitude <- as.numeric(normalized_trajectory_data$Amplitude)
+normalized_trajectory_data$Actuator <- as.character(normalized_trajectory_data$Actuator)
+
+# Get all unique device-actuator combinations
+device_types <- c("bracelet", "necklace", "overear")
+actuator_list <- 0:5  # Assuming actuators are numbered 0-5
+
+# Create trajectory plots for each device-actuator combination
+for (device in device_types) {
+  for (actuator in actuator_list) {
+    # Filter data for this device-actuator combination
+    combo_data <- normalized_trajectory_data %>%
+      filter(device_type == device, Actuator == actuator)
+    
+    # Skip if no data for this combination
+    if (nrow(combo_data) == 0) {
+      cat("No data for device:", device, "actuator:", actuator, "\n")
+      next
+    }
+    
+    # Calculate number of unique participants
+    participants <- unique(combo_data$PID)
+    num_participants <- length(participants)
+    
+    # Create the plot with reset trial numbers
+    p <- ggplot(combo_data, aes(x = Trial, y = Amplitude, group = PID, color = PID)) +
+      geom_line() +
+      geom_point(size = 1) +
+      labs(
+        title = paste("All Participants:", device, "- Actuator", actuator),
+        subtitle = paste(num_participants, "participants"),
+        x = "Trial (reset per actuator)",
+        y = "Amplitude",
+        color = "Participant ID"
+      ) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 14, hjust = 0.5),
+        legend.position = "right"
+      )
+    
+    # Display the plot
+    print(p)
+    
+    # Create a second version with standardized trial numbers
+    # This helps compare trajectory shapes when trial counts differ
+    if (num_participants > 1) {
+      # Normalize trial progression for each participant (0 to 1)
+      normalized_data <- combo_data %>%
+        group_by(PID) %>%
+        mutate(
+          MaxTrial = max(Trial),
+          NormalizedTrial = Trial / MaxTrial
+        ) %>%
+        ungroup()
+      
+      p2 <- ggplot(normalized_data, aes(x = NormalizedTrial, y = Amplitude, group = PID, color = PID)) +
+        geom_line() +
+        geom_point(size = 1) +
+        labs(
+          title = paste("Normalized Trajectories:", device, "- Actuator", actuator),
+          subtitle = paste(num_participants, "participants"),
+          x = "Normalized Trial Position (0-1)",
+          y = "Amplitude",
+          color = "Participant ID"
+        ) +
+        theme_minimal() +
+        theme(
+          plot.title = element_text(size = 14, hjust = 0.5),
+          legend.position = "right"
+        )
+      
+      # Display the normalized plot
+      print(p2)
+    }
+  }
+}
+
+# For the average trajectories, we also need to use the reset trial numbers
+avg_trajectories <- normalized_trajectory_data %>%
+  # Normalize trial progression for each participant-device-actuator combination
+  group_by(PID, device_type, Actuator) %>%
+  mutate(
+    MaxTrial = max(Trial),
+    TrialPercent = floor((Trial / MaxTrial) * 10) / 10  # Round to nearest 0.1
+  ) %>%
+  ungroup() %>%
+  # Calculate average amplitude at each trial percentage point
+  group_by(device_type, Actuator, TrialPercent) %>%
+  summarise(
+    AvgAmplitude = mean(Amplitude, na.rm = TRUE),
+    StdDev = sd(Amplitude, na.rm = TRUE),
+    n = n(),
+    .groups = 'drop'
+  )
+
+# Plot average trajectories for each device type
+for (device in device_types) {
+  device_data <- avg_trajectories %>% filter(device_type == device)
+  
+  # Skip if no data
+  if (nrow(device_data) == 0) next
+  
+  p <- ggplot(device_data, aes(x = TrialPercent, y = AvgAmplitude, color = factor(Actuator), group = Actuator)) +
+    geom_line(size = 1) +
+    geom_point() +
+    # Add error ribbons
+    geom_ribbon(aes(ymin = AvgAmplitude - StdDev, ymax = AvgAmplitude + StdDev, fill = factor(Actuator)), alpha = 0.2, color = NA) +
+    labs(
+      title = paste("Average Trajectories by Actuator for", device),
+      x = "Normalized Trial Position",
+      y = "Average Amplitude",
+      color = "Actuator",
+      fill = "Actuator"
+    ) +
+    theme_minimal()
+  
+  print(p)
+}
+```
+
+
+
+## Statistical Tests
+
+#Absolute 
+
+```{r absolute_threshold_stats, echo = FALSE, warning = FALSE, message = FALSE}
+# Reshape  data to wide format for paired tests
+threshold_wide <- threshold_results_filtered %>%
+  pivot_wider(
+    id_cols = c(PID, Actuator),
+    names_from = device_type,
+    values_from = Threshold
+  )
+
+# Check for missing values and remove rows with NAs to enable paired tests
+threshold_wide_complete <- na.omit(threshold_wide)
+
+# Test for normality with Shapiro-Wilk test
+shapiro.test(threshold_wide_complete$bracelet - threshold_wide_complete$necklace)
+shapiro.test(threshold_wide_complete$bracelet - threshold_wide_complete$overear)
+shapiro.test(threshold_wide_complete$necklace - threshold_wide_complete$overear)
+
+# Repeated measures ANOVA using base R
+# Convert data to appropriate format for repeated measures
+threshold_rm <- data.frame(
+  PID = threshold_wide_complete$PID,
+  Actuator = threshold_wide_complete$Actuator,
+  bracelet = threshold_wide_complete$bracelet,
+  necklace = threshold_wide_complete$necklace,
+  overear = threshold_wide_complete$overear
+)
+
+# Create dataframe in long format for repeated measures
+threshold_long <- reshape(
+  threshold_rm,
+  idvar = c("PID", "Actuator"),
+  varying = c("bracelet", "necklace", "overear"),
+  v.names = "Threshold",
+  timevar = "device_type",
+  times = c("bracelet", "necklace", "overear"),
+  direction = "long"
+)
+
+# Run repeated measures ANOVA
+aov_model <- aov(Threshold ~ device_type + Error(PID/device_type), data = threshold_long)
+summary(aov_model)
+
+# Paired t-tests for post-hoc comparisons
+bracelet_necklace <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
+bracelet_overear <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
+necklace_overear <- t.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
+
+# Apply Bonferroni correction by adjusting p-values
+p_values <- c(bracelet_necklace$p.value, bracelet_overear$p.value, necklace_overear$p.value)
+p_adjusted <- p.adjust(p_values, method = "bonferroni")
+
+# Print results
+results <- data.frame(
+  Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
+  t_value = c(bracelet_necklace$statistic, bracelet_overear$statistic, necklace_overear$statistic),
+  p_value = p_values,
+  p_adjusted = p_adjusted
+)
+print(results)
+
+# For non-parametric alternative (if data violates normality assumptions)
+wilcox_bn <- wilcox.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
+wilcox_bo <- wilcox.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
+wilcox_no <- wilcox.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
+
+# Print non-parametric results
+wilcox_results <- data.frame(
+  Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
+  V_statistic = c(wilcox_bn$statistic, wilcox_bo$statistic, wilcox_no$statistic),
+  p_value = c(wilcox_bn$p.value, wilcox_bo$p.value, wilcox_no$p.value),
+  p_adjusted = p.adjust(c(wilcox_bn$p.value, wilcox_bo$p.value, wilcox_no$p.value), method = "bonferroni")
+)
+print(wilcox_results)
+
+```
+
+
+## Absolute between motors 
+
+```{r absolute_threshold_between_motors, echo = FALSE, warning = FALSE, message = FALSE}
+# Check for differences between actuators for each device type
+threshold_aov_actuator <- aov(Threshold ~ Actuator + Error(PID/Actuator), data = threshold_long)
+summary(threshold_aov_actuator)
+
+# You can also analyze by device type separately
+for (device in unique(threshold_results_filtered$device_type)) {
+  # Subset data for this device
+  device_data <- threshold_results_filtered %>% 
+    filter(device_type == device)
+  
+  # Convert to appropriate format
+  device_data$PID <- factor(device_data$PID)
+  device_data$Actuator <- factor(device_data$Actuator)
+  
+  # ANOVA for this device
+  cat("\n\n=== Actuator differences for", device, "===\n")
+  aov_model <- aov(Threshold ~ Actuator + Error(PID/Actuator), data = device_data)
+  print(summary(aov_model))
+  
+  # Post-hoc tests if ANOVA is significant
+  # Use pairwise t-tests
+  if (length(unique(device_data$Actuator)) > 1) {
+    actuator_means <- aggregate(Threshold ~ Actuator, data = device_data, FUN = mean)
+    cat("\nMean thresholds by actuator:\n")
+    print(actuator_means)
+    
+    # If there are enough data points, do pairwise comparisons
+    if (length(unique(device_data$Actuator)) > 1) {
+      cat("\nPairwise comparisons between actuators:\n")
+      pairwise_result <- pairwise.t.test(
+        device_data$Threshold, 
+        device_data$Actuator,
+        p.adjust.method = "bonferroni",
+        paired = FALSE  # Change to TRUE if fully paired design
+      )
+      print(pairwise_result)
+    }
+  }
+}
+```
+
+##Localization Accuracy Statistical Analysis
+
+```{r localization_accuracy_stats, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Create participant-level summary data
+loc_summary <- localization_combined %>%
+  group_by(PID, device_type) %>%
+  summarise(Accuracy = mean(Correct, na.rm = TRUE)) %>%
+  ungroup()
+
+# Convert to wide format
+loc_wide <- loc_summary %>%
+  pivot_wider(
+    id_cols = PID,
+    names_from = device_type,
+    values_from = Accuracy
+  )
+
+# Remove rows with missing values
+loc_wide_complete <- na.omit(loc_wide)
+
+# Test for normality
+shapiro.test(loc_wide_complete$bracelet - loc_wide_complete$necklace)
+shapiro.test(loc_wide_complete$bracelet - loc_wide_complete$overear)
+shapiro.test(loc_wide_complete$necklace - loc_wide_complete$overear)
+
+# Reshape for repeated measures
+loc_long <- reshape(
+  loc_wide_complete,
+  idvar = "PID",
+  varying = c("bracelet", "necklace", "overear"),
+  v.names = "Accuracy",
+  timevar = "device_type",
+  times = c("bracelet", "necklace", "overear"),
+  direction = "long"
+)
+
+# Repeated measures ANOVA
+loc_aov <- aov(Accuracy ~ device_type + Error(PID/device_type), data = loc_long)
+summary(loc_aov)
+
+# Paired t-tests for post-hoc comparisons
+loc_bn <- t.test(loc_wide_complete$bracelet, loc_wide_complete$necklace, paired = TRUE)
+loc_bo <- t.test(loc_wide_complete$bracelet, loc_wide_complete$overear, paired = TRUE)
+loc_no <- t.test(loc_wide_complete$necklace, loc_wide_complete$overear, paired = TRUE)
+
+# Apply Bonferroni correction
+loc_p_values <- c(loc_bn$p.value, loc_bo$p.value, loc_no$p.value)
+loc_p_adjusted <- p.adjust(loc_p_values, method = "bonferroni")
+
+# Print results
+loc_results <- data.frame(
+  Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
+  t_value = c(loc_bn$statistic, loc_bo$statistic, loc_no$statistic),
+  p_value = loc_p_values,
+  p_adjusted = loc_p_adjusted
+)
+print(loc_results)
+```
+
+##Localization between motors 
+
+```{r localization_motor_stats, echo = FALSE, warning = FALSE, message = FALSE}
+# Test for differences between motor positions
+# First, prepare the data
+localization_for_motor <- localization_combined %>%
+  mutate(
+    Motor = factor(Motor),
+    PID = factor(PID)
+  )
+
+# Run separate analysis for each device type
+for (device in unique(localization_for_motor$device_type)) {
+  device_data <- localization_for_motor %>% 
+    filter(device_type == device)
+  
+  cat("\n\n=== Motor position effects for", device, "===\n")
+  
+  # Check if we have enough data
+  if (nrow(device_data) > 0) {
+    # ANOVA to test effect of motor position on accuracy
+    aov_model <- aov(Correct ~ Motor + Error(PID/Motor), data = device_data)
+    print(summary(aov_model))
+    
+    # Calculate and print accuracy by motor position
+    motor_accuracy <- device_data %>%
+      group_by(Motor) %>%
+      summarize(
+        Accuracy = mean(Correct, na.rm = TRUE),
+        SD = sd(Correct, na.rm = TRUE),
+        n = n()
+      )
+    
+    cat("\nAccuracy by motor position:\n")
+    print(motor_accuracy)
+    
+    # Pairwise comparisons if overall test is significant
+    cat("\nPairwise comparisons between motor positions:\n")
+    pairwise_result <- pairwise.t.test(
+      device_data$Correct, 
+      device_data$Motor,
+      p.adjust.method = "bonferroni"
+    )
+    print(pairwise_result)
+  } else {
+    cat("Not enough data for analysis")
+  }
+}
+```
+## Two point accuracy 
+
+```{r two_point_accuracy_stats, echo = FALSE, warning = FALSE, message = FALSE}
+# Create participant-level summary data
+tp_summary <- two_point_combined %>%
+  group_by(PID, device_type) %>%
+  summarise(Accuracy = mean(Correct, na.rm = TRUE)) %>%
+  ungroup()
+
+# Convert to wide format
+tp_wide <- tp_summary %>%
+  pivot_wider(
+    id_cols = PID,
+    names_from = device_type,
+    values_from = Accuracy
+  )
+
+# Remove rows with missing values
+tp_wide_complete <- na.omit(tp_wide)
+
+# Test for normality
+shapiro.test(tp_wide_complete$bracelet - tp_wide_complete$necklace)
+shapiro.test(tp_wide_complete$bracelet - tp_wide_complete$overear)
+shapiro.test(tp_wide_complete$necklace - tp_wide_complete$overear)
+
+# Reshape for repeated measures
+tp_long <- reshape(
+  tp_wide_complete,
+  idvar = "PID",
+  varying = c("bracelet", "necklace", "overear"),
+  v.names = "Accuracy",
+  timevar = "device_type",
+  times = c("bracelet", "necklace", "overear"),
+  direction = "long"
+)
+
+# Repeated measures ANOVA
+tp_aov <- aov(Accuracy ~ device_type + Error(PID/device_type), data = tp_long)
+summary(tp_aov)
+
+# Paired t-tests for post-hoc comparisons
+tp_bn <- t.test(tp_wide_complete$bracelet, tp_wide_complete$necklace, paired = TRUE)
+tp_bo <- t.test(tp_wide_complete$bracelet, tp_wide_complete$overear, paired = TRUE)
+tp_no <- t.test(tp_wide_complete$necklace, tp_wide_complete$overear, paired = TRUE)
+
+# Apply Bonferroni correction
+tp_p_values <- c(tp_bn$p.value, tp_bo$p.value, tp_no$p.value)
+tp_p_adjusted <- p.adjust(tp_p_values, method = "bonferroni")
+
+# Print results
+tp_results <- data.frame(
+  Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
+  t_value = c(tp_bn$statistic, tp_bo$statistic, tp_no$statistic),
+  p_value = tp_p_values,
+  p_adjusted = tp_p_adjusted
+)
+print(tp_results)
+```
+
+
+## Two point between motors 
+
+```{r two_point_motor_stats, echo = FALSE, warning = FALSE, message = FALSE}
+  # For two-point discrimination, we want to analyze the effect of
+# motor distance and possibly start position
+
+# First approach: Effect of distance on accuracy
+tp_distance_data <- two_point_combined %>%
+  mutate(
+    Distance = factor(abs(FirstMotor - SecondMotor)),
+    PID = factor(PID)
+  )
+
+# Analyze by device type
+for (device in unique(tp_distance_data$device_type)) {
+  device_data <- tp_distance_data %>% 
+    filter(device_type == device)
+  
+  cat("\n\n=== Effect of motor distance for", device, "===\n")
+  
+  if (nrow(device_data) > 0 && length(unique(device_data$Distance)) > 1) {
+    # ANOVA
+    aov_model <- aov(Correct ~ Distance + Error(PID/Distance), data = device_data)
+    print(summary(aov_model))
+    
+    # Accuracy by distance
+    distance_accuracy <- device_data %>%
+      group_by(Distance) %>%
+      summarize(
+        Accuracy = mean(Correct, na.rm = TRUE),
+        SD = sd(Correct, na.rm = TRUE),
+        n = n()
+      )
+    
+    cat("\nAccuracy by motor distance:\n")
+    print(distance_accuracy)
+    
+    # Pairwise comparisons
+    if (length(unique(device_data$Distance)) > 1) {
+      cat("\nPairwise comparisons between distances:\n")
+      pairwise_result <- pairwise.t.test(
+        device_data$Correct, 
+        device_data$Distance,
+        p.adjust.method = "bonferroni"
+      )
+      print(pairwise_result)
+    }
+  } else {
+    cat("Not enough data or variation in distances for analysis")
+  }
+  
+  # Second approach: Effect of first motor position on accuracy
+  cat("\n\n=== Effect of first motor position for", device, "===\n")
+  
+  device_data <- two_point_combined %>%
+    filter(device_type == device) %>%
+    mutate(
+      FirstMotor = factor(FirstMotor),
+      PID = factor(PID)
+    )
+  
+  if (nrow(device_data) > 0 && length(unique(device_data$FirstMotor)) > 1) {
+    # ANOVA
+    aov_model <- aov(Correct ~ FirstMotor + Error(PID/FirstMotor), data = device_data)
+    print(summary(aov_model))
+    
+    # Accuracy by first motor
+    motor_accuracy <- device_data %>%
+      group_by(FirstMotor) %>%
+      summarize(
+        Accuracy = mean(Correct, na.rm = TRUE),
+        SD = sd(Correct, na.rm = TRUE),
+        n = n()
+      )
+    
+    cat("\nAccuracy by first motor position:\n")
+    print(motor_accuracy)
+    
+    # Pairwise comparisons
+    if (length(unique(device_data$FirstMotor)) > 1) {
+      cat("\nPairwise comparisons between first motor positions:\n")
+      pairwise_result <- pairwise.t.test(
+        device_data$Correct, 
+        device_data$FirstMotor,
+        p.adjust.method = "bonferroni"
+      )
+      print(pairwise_result)
+    }
+  } else {
+    cat("Not enough data or variation in first motor positions for analysis")
+  }
+}
+```
