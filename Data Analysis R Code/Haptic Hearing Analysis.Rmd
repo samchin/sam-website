@@ -59,25 +59,7 @@ find_header_and_transform <- function(file_path) {
 
 
 # Base directory where all participant data is stored
-base_dir <- "~/Desktop/[HapticHearing] Data"
-
-# Alternative paths to try if the first one doesn't work
-alternative_paths <- c(
-  "~/Desktop/[HapticHearing] Data",
-  "/Users/$(whoami)/Desktop/[HapticHearing] Data",  # Expanded home directory
-  "./Desktop/[HapticHearing] Data",
-  "[HapticHearing] Data"
-)
-
-# Try each path until we find one that exists
-for (path in alternative_paths) {
-  cat("Checking path:", path, "\n")
-  if (dir.exists(path)) {
-    base_dir <- path
-    cat("Using directory:", base_dir, "\n")
-    break
-  }
-}
+base_dir <- "../Data/Psychophysical Data/"
 
 # If none of the predefined paths work, ask user to specify the directory
 if (!dir.exists(base_dir)) {
@@ -89,18 +71,6 @@ participant_folders <- list.dirs(path = base_dir, full.names = TRUE, recursive =
 
 # Filter to only include directories that are named with numbers (participant IDs)
 participant_folders <- participant_folders[grepl("^[0-9]+$", basename(participant_folders))]
-
-if (length(participant_folders) == 0) {
-  cat("No valid participant folders found. Looking for participant folders with pattern ^[0-9]+$\n")
-  
-  # List all directories and files in the base directory for debugging
-  all_items <- list.files(base_dir, full.names = TRUE)
-  cat("Items in base directory:", paste(basename(all_items), collapse=", "), "\n")
-  
-  # Try without filtering for numeric names
-  participant_folders <- list.dirs(path = base_dir, full.names = TRUE, recursive = FALSE)
-  cat("All possible folders:", paste(basename(participant_folders), collapse=", "), "\n")
-}
 
 participant_ids <- basename(participant_folders)
 cat("Found", length(participant_folders), "participant folders:", paste(participant_ids, collapse=", "), "\n")
@@ -512,7 +482,18 @@ if (length(two_point_data) > 0) {
 }
 
 
+#print unique pids
+unique_pid_localization <- unique(localization_combined$PID)
+#print list of unique pid
+print(unique_pid_localization)
 
+
+
+
+#print unique pids
+unique_pid_tp <- unique(two_point_combined$PID)
+#print list of unique pid
+print(unique_pid_tp)
 
 
 ```
@@ -810,8 +791,6 @@ if (!is.null(two_point_combined)) {
 ## Absolute Threshold Analysis
 
 ```{r absolute_threshold_analysis, echo = FALSE, warning = FALSE, message = FALSE}
-# Load required libraries
-library(tidyverse)
 
 # Function to find header row and transform data properly
 find_header_and_transform <- function(df) {
@@ -1393,7 +1372,6 @@ for (device in device_types) {
 #Absolute 
 
 
-
 ```{r absolute_threshold_stats, echo = FALSE, warning = FALSE, message = FALSE}
 # First, inspect the threshold_results_filtered to understand its structure
 str(threshold_results_filtered)
@@ -1921,7 +1899,6 @@ questionnaire_data$Q58 <- as.numeric(questionnaire_data$Q58)
 
 print("mean neck measurement")
 mean(questionnaire_data$Q55)
-
 
 print("mean wrist measurement")
 mean(questionnaire_data$Q58)
