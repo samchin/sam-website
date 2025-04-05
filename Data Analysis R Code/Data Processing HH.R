@@ -21,8 +21,7 @@ my_theme <- theme_minimal() +
 
 ## Data Loading and Processing
 # Base directory where all participant data is stored
-base_dir <- "../Data/Psychophysical Data/"
-
+base_dir = "../Data/Psychophysical Data/"
 # If none of the predefined paths work, ask user to specify the directory
 if (!dir.exists(base_dir)) {
   cat("Cannot find the data directory. Please modify the script to set 'base_dir' to the correct path.\n")
@@ -402,6 +401,16 @@ if (length(localization_data) > 0) {
   cat("No localization data found.\n")
 }
 
+localization_combined <- localization_combined %>%
+  select(-`Device Type`) %>%
+  mutate(
+    Trial = as.numeric(Trial),
+    Motor = as.numeric(Motor),
+    Response = as.numeric(Response),
+    PID = as.numeric(PID),
+    correct = as.logical(Correct)
+  )
+
 if (length(two_point_data) > 0) {
   two_point_combined <- bind_rows(two_point_data)
   
@@ -418,6 +427,18 @@ if (length(two_point_data) > 0) {
   two_point_combined <- NULL
   cat("No two-point discrimination data found.\n")
 }
+
+
+two_point_combined <- two_point_combined %>%
+  select(-DeviceType) %>%
+  mutate(
+    Trial = as.numeric(Trial),
+    FirstMotor = as.numeric(FirstMotor),
+    SecondMotor = as.numeric(SecondMotor),
+    PID = as.numeric(PID),
+    Correct = as.logical(Correct)
+  )
+
 
 ## Loading in absolute threshold data
 # Function to find header row and transform data properly
