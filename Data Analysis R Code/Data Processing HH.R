@@ -331,12 +331,15 @@ for (pid_folder in participant_folders) {
       # Try alternative reading method if first attempt fails
         # Try reading with different options
         print(file)
+        total_rows <- length(readLines(file)) - 1 
         data <- read_csv(file, 
+                         na = c("NA", "na", ""),
+                         n_max = total_rows - 7,
                          show_col_types = FALSE, 
                          guess_max = 10000, 
-                         col_types = cols(.default = "c"),
                          skip = 3) # Skip first 3 rows
         
+        problems(data)
         # Add PID and device type columns
         data$PID <- pid
         data$device_type <- device_type
