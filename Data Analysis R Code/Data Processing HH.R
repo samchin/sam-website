@@ -21,7 +21,7 @@ my_theme <- theme_minimal() +
 
 ## Data Loading and Processing
 # Base directory where all participant data is stored
-base_dir = "../Data/Psychophysical Data/"
+base_dir = "../Data/Psychophysical Data"
 # If none of the predefined paths work, ask user to specify the directory
 if (!dir.exists(base_dir)) {
   cat("Cannot find the data directory. Please modify the script to set 'base_dir' to the correct path.\n")
@@ -328,36 +328,21 @@ for (pid_folder in participant_folders) {
       cat("    Guessed device type from filename:", device_type, "\n")
     }
     
-    tryCatch({
-      # Try reading with different options
-      data <- read_csv(file, show_col_types = FALSE)
-      
-      # Add PID and device type columns
-      data$PID <- pid
-      data$device_type <- device_type
-      
-      # Add to the appropriate list
-      absolute_data[[length(absolute_data) + 1]] <- data
-        
-    }, error = function(e) {
-      cat("    Error loading file:", file, "Error:", e$message, "\n")
-      
       # Try alternative reading method if first attempt fails
-      tryCatch({
-        cat("    Attempting alternative reading method...\n")
-        data <- read.csv(file, stringsAsFactors = FALSE)
-        data <- as_tibble(data)
+        # Try reading with different options
+        print(file)
+        data <- read_csv(file, 
+                         show_col_types = FALSE, 
+                         guess_max = 10000, 
+                         col_types = cols(.default = "c"),
+                         skip = 3) # Skip first 3 rows
+        
+        # Add PID and device type columns
         data$PID <- pid
         data$device_type <- device_type
         
         # Add to the appropriate list
         absolute_data[[length(absolute_data) + 1]] <- data
-        
-        cat("    Successfully loaded with alternative method\n")
-      }, error = function(e2) {
-        cat("    Alternative method also failed:", e2$message, "\n")
-      })
-    })
   }
 }
 
