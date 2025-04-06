@@ -197,7 +197,7 @@ Timestamp,Amplitude,StimulusInterval,SelectedInterval,Correct,ConsecutiveCorrect
 2025-03-16T03:17:25.392Z,0.10795679999999999,Second,Second,TRUE,1,FALSE,5,4,GUESS,5,necklace,0
 2025-03-16T03:17:28.331Z,0.10795679999999999,Second,Second,TRUE,2,FALSE,5,4,GUESS,5,necklace,0
 2025-03-16T03:17:31.108Z,0.10795679999999999,Second,Second,TRUE,3,TRUE,6,4,GUESS,5,necklace,0
-,,,,,,,,,,,,
-,,,,,,,,,,,,
+
+
 Starting Step Index,Initial Amplitude,Selected Actuator,Best Amplitude,DeviceType,PID,,,,,,,
-2,0.29988,5,0.008394721,necklace,0,,,,,,,
+2,0.29988,5,0.008394721,necklace,1,,,,,,,

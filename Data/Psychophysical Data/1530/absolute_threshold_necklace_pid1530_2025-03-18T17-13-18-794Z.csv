@@ -1,5 +1,5 @@
 DeviceType,PID,,,,,,,,,,,
-necklace,1530,,,,,,,,,,,
+overear,1530,,,,,,,,,,,
 ,,,,,,,,,,,,
 Timestamp,Amplitude,StimulusInterval,SelectedInterval,Correct,ConsecutiveCorrect,IsReversal,ReversalNumber,StepIndex,Type,Actuator,DeviceType,PID
 2025-03-18T17:06:26.391Z,0.35397289219206896,Second,First,FALSE,0,FALSE,,1,GUESS,0,necklace,1530
@@ -135,3 +135,7 @@ Timestamp,Amplitude,StimulusInterval,SelectedInterval,Correct,ConsecutiveCorrect
 2025-03-18T17:13:08.439Z,0.17740669461678774,First,Second,FALSE,1,FALSE,5,3,GUESS,5,necklace,1530
 2025-03-18T17:13:11.083Z,0.2505936168136361,Second,Second,TRUE,1,FALSE,5,2,GUESS,5,necklace,1530
 2025-03-18T17:13:13.838Z,0.2505936168136361,Second,Second,TRUE,2,TRUE,6,2,GUESS,5,necklace,1530
+
+
+Starting Step Index,Initial Amplitude,Selected Actuator,Best Amplitude,DeviceType,PID,,,,,,,
+1,0.35397289219206896,5,0.044562546906687275,necklace,1530,,,,,,,

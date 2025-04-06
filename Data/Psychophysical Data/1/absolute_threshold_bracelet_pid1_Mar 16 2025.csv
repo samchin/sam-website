@@ -1,6 +1,6 @@
 DeviceType,PID,,,,,,,,,,,
 bracelet,1,,,,,,,,,,,
-,,,,,,,,,,,,
+
 Timestamp,Amplitude,StimulusInterval,SelectedInterval,Correct,ConsecutiveCorrect,IsReversal,ReversalNumber,StepIndex,Type,Actuator,DeviceType,PID
 2025-03-16T03:47:34.232Z,0.29988,First,First,TRUE,1,FALSE,,2,GUESS,0,bracelet,0
 2025-03-16T03:47:37.173Z,0.29988,Second,Second,TRUE,2,FALSE,,2,GUESS,0,bracelet,0
@@ -205,7 +205,7 @@ Timestamp,Amplitude,StimulusInterval,SelectedInterval,Correct,ConsecutiveCorrect
 2025-03-16T03:56:30.395Z,0.038864448,First,First,TRUE,1,FALSE,5,6,GUESS,5,bracelet,0
 2025-03-16T03:56:32.884Z,0.038864448,Second,Second,TRUE,2,FALSE,5,6,GUESS,5,bracelet,0
 2025-03-16T03:56:35.478Z,0.038864448,First,First,TRUE,3,TRUE,6,6,GUESS,5,bracelet,0
-,,,,,,,,,,,,
-,,,,,,,,,,,,
+
+
 Starting Step Index,Initial Amplitude,Selected Actuator,Best Amplitude,DeviceType,PID,,,,,,,
-2,0.29988,5,0.005036832,bracelet,0,,,,,,,
+2,0.29988,5,0.005036832,bracelet,1,,,,,,,

@@ -165,7 +165,7 @@ Timestamp,Amplitude,StimulusInterval,SelectedInterval,Correct,ConsecutiveCorrect
 2025-03-16T03:36:10.927Z,0.10795679999999999,Second,Second,TRUE,1,FALSE,5,4,GUESS,5,overear,0
 2025-03-16T03:36:13.731Z,0.10795679999999999,Second,Second,TRUE,2,FALSE,5,4,GUESS,5,overear,0
 2025-03-16T03:36:16.544Z,0.10795679999999999,First,First,TRUE,3,TRUE,6,4,GUESS,5,overear,0
-,,,,,,,,,,,,
-,,,,,,,,,,,,
+
+
 Starting Step Index,Initial Amplitude,Selected Actuator,Best Amplitude,DeviceType,PID,,,,,,,
-2,0.29988,5,0.038864448,overear,0,,,,,,,
+2,0.29988,5,0.038864448,overear,1,,,,,,,
