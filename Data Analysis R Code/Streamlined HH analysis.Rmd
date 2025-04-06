@@ -653,10 +653,23 @@ accuracy_by_motor <- localization_combined %>%
   )
 
 
+# ===============================================================
+# PART 1: LOCALIZATION ACCURACY BY MOTOR POSITION
+# ===============================================================
+
+# Calculate device averages for motor position plot
+device_averages <- accuracy_by_motor %>%
+  group_by(device_type) %>%
+  summarise(avg_accuracy = mean(Accuracy, na.rm = TRUE))
+
 # Plot accuracy by motor position for each device
 ggplot(accuracy_by_motor, aes(x = Motor, y = Accuracy, color = device_type)) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
+  # Add horizontal average lines for each device type
+  geom_hline(data = device_averages, 
+             aes(yintercept = avg_accuracy, color = device_type),
+             linetype = "dashed", size = 1) +
   scale_color_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
   scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
   labs(
@@ -668,20 +681,23 @@ ggplot(accuracy_by_motor, aes(x = Motor, y = Accuracy, color = device_type)) +
   my_theme
 
 
-# First, check how many rows have NA device types
+# ===============================================================
+# PART 2: CONFUSION MATRIX ANALYSIS BY DEVICE TYPE
+# ===============================================================
+
+# Check how many rows have NA device types
 na_device_count <- sum(is.na(localization_combined$device_type))
 cat("Number of rows with NA device_type:", na_device_count, "\n")
 
-# Make sure all three device types are considered, even if they don't appear in the data
+# Make sure all three device types are considered
 expected_devices <- c("bracelet", "necklace", "overear")
 existing_devices <- unique(localization_combined$device_type[!is.na(localization_combined$device_type)])
 devices <- unique(c(expected_devices, existing_devices))
-
 cat("Device types to process:", paste(devices, collapse=", "), "\n")
 
 # Process each device type
 for (device in devices) {
-  # This ensures we only process valid device types
+  # Filter data for current device
   device_data <- localization_combined %>% 
     filter(device_type == device)
   
@@ -692,10 +708,8 @@ for (device in devices) {
   
   # Only proceed if we have data
   if (nrow(device_data) > 0) {
-    # Get all unique values from both Motor and Response
+    # Prepare factor levels for consistent confusion matrix
     all_levels <- sort(unique(c(device_data$Motor, device_data$Response)))
-    
-    # Create factors with the same levels
     device_data$Motor_factor <- factor(device_data$Motor, levels = all_levels)
     device_data$Response_factor <- factor(device_data$Response, levels = all_levels)
     
@@ -704,11 +718,12 @@ for (device in devices) {
     
     # Use tryCatch to handle potential errors
     tryCatch({
+      # Create and display confusion matrix
       confusion <- confusionMatrix(data = device_data$Response_factor,
                                   reference = device_data$Motor_factor)
       print(confusion)
       
-      # Visualize confusion matrix
+      # Prepare data for visualization
       conf_mat <- as.data.frame(confusion$table)
       conf_mat_wide <- dcast(conf_mat, Prediction ~ Reference, value.var = "Freq")
       conf_mat_matrix <- as.matrix(conf_mat_wide[, -1])
@@ -726,7 +741,6 @@ for (device in devices) {
         geom_tile() +
         geom_text(aes(label = sprintf("%.2f", Proportion)), size = 3) +
         scale_fill_gradient(low = "white", high = "blue") +
-        #the labels are 1 through 6 starting from the bottom left cell
         labs(
           title = paste("Confusion Matrix -", device, "Device"),
           x = "Actual Motor Position",
@@ -741,6 +755,7 @@ for (device in devices) {
       print(p)
         
     }, error = function(e) {
+      # Error handling - fallback to base R table
       cat("Error creating confusion matrix for", device, "device:", e$message, "\n")
       cat("Falling back to base R table method\n")
       
@@ -786,30 +801,43 @@ for (device in devices) {
   }
 }
 
-# Accuracy by participant
+
+# ===============================================================
+# PART 3: LOCALIZATION ACCURACY BY PARTICIPANT
+# ===============================================================
+
+# Calculate accuracy by participant
 accuracy_by_participant <- localization_combined %>%
   group_by(PID, device_type) %>%
   summarise(
     Accuracy = mean(Correct, na.rm = TRUE),
     n = n()
-  )
+  ) %>%
+  # Filter out any incorrect device types
+  filter(device_type %in% c("bracelet", "necklace", "overear")) %>%
+  # Clean up device_type to ensure consistent naming
+  mutate(device_type = tolower(device_type))
 
-# Filter out any incorrect device types
-accuracy_by_participant <- accuracy_by_participant %>%
-  filter(device_type %in% c("bracelet", "necklace", "overear"))
+# Calculate average accuracy per device for the participant visualization
+participant_device_averages <- accuracy_by_participant %>%
+  group_by(device_type) %>%
+  summarise(avg_accuracy = mean(Accuracy, na.rm = TRUE))
 
-# Clean up device_type to ensure consistent naming
-accuracy_by_participant$device_type <- tolower(accuracy_by_participant$device_type)
-
-# Visualize accuracy by participant
+# Visualize accuracy by participant with average lines
 ggplot(accuracy_by_participant, aes(x = factor(PID), y = Accuracy, fill = device_type)) +
   geom_bar(stat = "identity", position = "dodge") +
+  # Add horizontal average lines for each device type
+  geom_hline(data = participant_device_averages, 
+             aes(yintercept = avg_accuracy, color = device_type),
+             linetype = "solid", size = 0.6, alpha=0.7) +
   scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
   scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
+  scale_color_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
   labs(
     title = "Localization Accuracy by Participant",
     x = "Participant ID",
-    y = "Average Accuracy"
+    y = "Average Accuracy",
+    color = "Device Average"
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -854,6 +882,7 @@ if (!is.null(two_point_combined)) {
       y = "Average Accuracy"
     ) +
     my_theme
+  
   
   # Calculate distance between motors
   two_point_combined$Distance <- abs(two_point_combined$FirstMotor - two_point_combined$SecondMotor)
@@ -1137,15 +1166,6 @@ tryCatch({
   print(sapply(threshold_results_filtered, class))
 })
 ```
-
-
-
-
-
-
-
-
-
 
 
 ## Statistical Tests
