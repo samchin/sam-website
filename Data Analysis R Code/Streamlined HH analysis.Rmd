@@ -13,65 +13,6 @@ source("Data Processing HH.R")
 
 
 ```{r absolute_threshold_analysis, echo = FALSE, warning = FALSE, message = FALSE}
-# Check if the data_list variable is populated
-cat("Checking data_list which should already be loaded...\n")
-if (!exists("data_list") || length(data_list) == 0) {
-  cat("WARNING: data_list is empty or doesn't exist! Using example data instead.\n")
-  
-  # Create example data
-  example_data <- list()
-  
-  # Example dataset 1 - bracelet
-  bracelet_data <- data.frame(
-    Timestamp = as.character(Sys.time() - (1:20) * 60),
-    Actuator = rep(0:1, each = 10),
-    Amplitude = c(0.5, 0.4, 0.3, 0.25, 0.3, 0.25, 0.2, 0.25, 0.2, 0.2,
-                 0.4, 0.3, 0.25, 0.2, 0.25, 0.2, 0.15, 0.2, 0.15, 0.15),
-    Correct = c(rep(TRUE, 15), rep(FALSE, 5)),
-    PID = "123",
-    device_type = "bracelet",
-    IsReversal = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE,
-                 FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE),
-    stringsAsFactors = FALSE
-  )
-  example_data[[1]] <- bracelet_data
-  
-  # Example dataset 2 - necklace
-  necklace_data <- data.frame(
-    Timestamp = as.character(Sys.time() - (1:20) * 60),
-    Actuator = rep(0:1, each = 10),
-    Amplitude = c(0.45, 0.35, 0.25, 0.2, 0.25, 0.2, 0.15, 0.2, 0.15, 0.15,
-                 0.35, 0.25, 0.2, 0.15, 0.2, 0.15, 0.1, 0.15, 0.1, 0.1),
-    Correct = c(rep(TRUE, 16), rep(FALSE, 4)),
-    PID = "123",
-    device_type = "necklace",
-    IsReversal = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE,
-                 FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE),
-    stringsAsFactors = FALSE
-  )
-  example_data[[2]] <- necklace_data
-  
-  # Example dataset 3 - overear
-  overear_data <- data.frame(
-    Timestamp = as.character(Sys.time() - (1:20) * 60),
-    Actuator = rep(0:1, each = 10),
-    Amplitude = c(0.7, 0.6, 0.5, 0.45, 0.5, 0.45, 0.4, 0.45, 0.4, 0.4,
-                 0.6, 0.5, 0.45, 0.4, 0.45, 0.4, 0.35, 0.4, 0.35, 0.35),
-    Correct = c(rep(TRUE, 14), rep(FALSE, 6)),
-    PID = "456",
-    device_type = "overear",
-    IsReversal = c(FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE,
-                 FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE),
-    stringsAsFactors = FALSE
-  )
-  example_data[[3]] <- overear_data
-  
-  data_list <- example_data
-  cat("Created", length(data_list), "example datasets for testing\n")
-} else {
-  cat("Found", length(data_list), "existing datasets to analyze\n")
-}
-
 # Initialize threshold_results as empty dataframe with correct structure
 threshold_results <- data.frame(
   PID = numeric(),
@@ -82,255 +23,191 @@ threshold_results <- data.frame(
 )
 cat("Initial threshold_results created with", nrow(threshold_results), "rows\n")
 
-# Process each dataset with more robust error handling
+# Process each dataset
 for (i in seq_along(data_list)) {
   df <- data_list[[i]]
   
-  tryCatch({
-    # Extract or default device_type and PID
-    device_type <- if ("device_type" %in% names(df)) unique(df$device_type)[1] else "unknown"
-    pid <- if ("PID" %in% names(df)) unique(df$PID)[1] else as.numeric(i)
+  # Extract device_type and PID
+  device_type <- if ("device_type" %in% names(df)) unique(df$device_type)[1] else "unknown"
+  pid <- if ("PID" %in% names(df)) unique(df$PID)[1] else as.numeric(i)
+  
+  cat("\nProcessing participant", pid, "with device", device_type, "\n")
+  
+  # Log columns for debugging
+  cat("Columns in dataset:", paste(names(df), collapse=", "), "\n")
+  
+  # Check for required columns with fallbacks
+  required_columns <- c("Actuator", "Amplitude")
+  optional_columns <- c("Correct", "IsReversal")
+  
+  missing_required <- setdiff(required_columns, names(df))
+  missing_optional <- setdiff(optional_columns, names(df))
+  
+  if (length(missing_required) > 0) {
+    cat("Missing required columns:", paste(missing_required, collapse=", "), "\n")
+    next  # Skip this dataset
+  }
+  
+  if (length(missing_optional) > 0) {
+    cat("Missing optional columns:", paste(missing_optional, collapse=", "), "\n")
+    # Add defaults for missing optional columns
+    if ("Correct" %in% missing_optional) {
+      df$Correct <- TRUE  # Assume all correct by default
+    }
+  }
+  
+  # Ensure numeric types for critical columns
+  df$Amplitude <- as.numeric(as.character(df$Amplitude))
+  
+  # Filter out data with missing actuator info
+  df <- df %>% filter(!is.na(Actuator) & Actuator != "")
+  
+  # Get unique actuators
+  actuators <- unique(df$Actuator)
+  cat("Found", length(actuators), "actuators:", paste(actuators, collapse=", "), "\n")
+  
+  actuator_thresholds <- list()
+  actuator_plots <- list()
+  
+  for (actuator in actuators) {
+    # Subset data for this actuator
+    actuator_data <- df %>% filter(Actuator == actuator)
     
-    cat("\nProcessing participant", pid, "with device", device_type, "\n")
-    
-    # Log columns for debugging
-    cat("Columns in dataset:", paste(names(df), collapse=", "), "\n")
-    
-    # Check for required columns with fallbacks
-    required_columns <- c("Actuator", "Amplitude")
-    optional_columns <- c("Correct", "IsReversal")
-    
-    missing_required <- setdiff(required_columns, names(df))
-    missing_optional <- setdiff(optional_columns, names(df))
-    
-    if (length(missing_required) > 0) {
-      cat("Missing required columns:", paste(missing_required, collapse=", "), "\n")
-      # Try to add missing columns if possible, or skip
-      if ("Actuator" %in% missing_required) {
-        cat("Adding default Actuator column\n")
-        df$Actuator <- "0"
-      }
-      if ("Amplitude" %in% missing_required) {
-        # Try to find any numeric column to use as Amplitude
-        num_cols <- sapply(df, is.numeric)
-        if (any(num_cols)) {
-          amp_col <- names(df)[which(num_cols)[1]]
-          cat("Using", amp_col, "as Amplitude\n")
-          df$Amplitude <- df[[amp_col]]
-        } else {
-          cat("No numeric column found for Amplitude - skipping\n")
-          next
-        }
-      }
+    # Skip actuators with too few trials
+    if (nrow(actuator_data) < 5) {
+      cat("Skipping actuator", actuator, "with only", nrow(actuator_data), "trials\n")
+      next
     }
     
-    if (length(missing_optional) > 0) {
-      cat("Missing optional columns:", paste(missing_optional, collapse=", "), "\n")
-      # Add defaults for missing optional columns
-      if ("Correct" %in% missing_optional) {
-        df$Correct <- TRUE  # Assume all correct by default
-      }
-    }
+    # Add trial numbers
+    actuator_data$Trial <- seq_len(nrow(actuator_data))
     
-    # Ensure numeric types for critical columns
-    df$Amplitude <- as.numeric(as.character(df$Amplitude))
+    # Reversal detection using multiple methods
+    reversal_rows <- NULL
     
-    # Filter out data with missing actuator info
-    df <- df %>% filter(!is.na(Actuator) & Actuator != "")
-    
-    # Get unique actuators
-    actuators <- unique(df$Actuator)
-    cat("Found", length(actuators), "actuators:", paste(actuators, collapse=", "), "\n")
-    
-    actuator_thresholds <- list()
-    actuator_plots <- list()
-    
-    for (actuator in actuators) {
-      # Subset data for this actuator
-      actuator_data <- df %>% filter(Actuator == actuator)
-      
-      # Skip actuators with too few trials
-      if (nrow(actuator_data) < 5) {
-        cat("Skipping actuator", actuator, "with only", nrow(actuator_data), "trials\n")
-        next
-      }
-      
-      # Add trial numbers
-      actuator_data$Trial <- seq_len(nrow(actuator_data))
-      
-      # Reversal detection using multiple methods
-      reversal_rows <- NULL
-      
-      # First try using IsReversal column if it exists
-      if ("IsReversal" %in% names(actuator_data)) {
-        cat("  Using IsReversal column for reversal detection\n")
-        tryCatch({
-          if (is.logical(actuator_data$IsReversal)) {
-            reversal_rows <- actuator_data %>% filter(IsReversal == TRUE)
-          } else if (is.character(actuator_data$IsReversal)) {
-            reversal_rows <- actuator_data %>% filter(toupper(IsReversal) %in% c("TRUE", "T", "YES", "Y"))
-          } else {
-            # If IsReversal is numeric, treat non-zero as TRUE
-            reversal_rows <- actuator_data %>% filter(as.numeric(IsReversal) != 0)
-          }
-        }, error = function(e) {
-          cat("  Error using IsReversal column:", e$message, "\n")
-          reversal_rows <- NULL
-        })
-      }
-      
-      # Fallback method if IsReversal doesn't exist or produced no results
-      if (is.null(reversal_rows) || nrow(reversal_rows) == 0) {
-        cat("  Using amplitude direction changes for reversal detection\n")
-        
-        # Calculate differences and detect sign changes
-        actuator_data$diff <- c(0, diff(actuator_data$Amplitude))
-        actuator_data$diff_sign <- sign(actuator_data$diff)
-        actuator_data$sign_change <- c(0, abs(diff(actuator_data$diff_sign)))
-        reversal_indices <- which(actuator_data$sign_change == 2)
-        
-        if (length(reversal_indices) > 0) {
-          reversal_rows <- actuator_data[reversal_indices, ]
-          cat("  Found", length(reversal_indices), "reversals using direction changes\n")
-        } else {
-          reversal_rows <- data.frame()  # Empty dataframe if no reversals found
-          cat("  No reversals found using direction changes\n")
-        }
-      }
-      
-      reversal_count <- nrow(reversal_rows)
-      cat("  Actuator", actuator, "has", reversal_count, "reversal points\n")
-      
-      # Find incorrect responses
-      incorrect_data <- data.frame()  # Default to empty
-      
-      if ("Correct" %in% names(actuator_data)) {
-        tryCatch({
-          if (is.logical(actuator_data$Correct)) {
-            incorrect_data <- actuator_data %>% filter(Correct == FALSE)
-          } else if (is.character(actuator_data$Correct)) {
-            incorrect_data <- actuator_data %>% filter(toupper(Correct) %in% c("FALSE", "F", "NO", "N"))
-          } else {
-            # If Correct is numeric, treat zero as FALSE
-            incorrect_data <- actuator_data %>% filter(as.numeric(Correct) == 0)
-          }
-        }, error = function(e) {
-          cat("  Error processing Correct column:", e$message, "\n")
-        })
-      }
-      
-      # Compute threshold (average of last 4 reversals or all if fewer)
-      avg_value <- NA
-      if (reversal_count >= 4) {
-        # Make sure we use the last 4 reversals by sorting first
-        reversal_rows <- reversal_rows %>% arrange(Trial)
-        last_four <- tail(reversal_rows, 4)
-        avg_value <- mean(last_four$Amplitude, na.rm = TRUE)
-        cat("    Using last 4 reversals. Amplitudes:", paste(last_four$Amplitude, collapse=", "), "\n")
-        cat("    Calculated threshold:", avg_value, "\n")
-      } else if (reversal_count > 0) {
-        avg_value <- mean(reversal_rows$Amplitude, na.rm = TRUE)
-        cat("    Using all available reversals. Amplitudes:", paste(reversal_rows$Amplitude, collapse=", "), "\n")
-        cat("    Calculated threshold:", avg_value, "\n")
+    # First try using IsReversal column if it exists
+    if ("IsReversal" %in% names(actuator_data)) {
+      cat("  Using IsReversal column for reversal detection\n")
+      if (is.logical(actuator_data$IsReversal)) {
+        reversal_rows <- actuator_data %>% filter(IsReversal == TRUE)
+      } else if (is.character(actuator_data$IsReversal)) {
+        reversal_rows <- actuator_data %>% filter(toupper(IsReversal) %in% c("TRUE", "T", "YES", "Y"))
       } else {
-        # Alternative method if no reversals found
-        cat("    No reversals found - using alternative method\n")
-        
-        # Use lowest 25% of amplitudes as an alternative approach
-        sorted_amplitudes <- sort(actuator_data$Amplitude)
-        lowest_quarter <- head(sorted_amplitudes, max(1, floor(length(sorted_amplitudes) * 0.25)))
-        avg_value <- mean(lowest_quarter)
-        cat("    Alternative threshold calculation:", avg_value, "\n")
-      }
-      
-      actuator_thresholds[[as.character(actuator)]] <- avg_value
-      
-      # Create plot
-      p <- ggplot(actuator_data, aes(x = Trial, y = Amplitude, group = 1)) +  # Ensure group=1 for connecting trials
-        geom_line(color = "black") +  # Line connecting trials
-        geom_point(size = 3) +  # All points
-        labs(
-          title = paste("Amplitude vs Trial:", device_type, "- Actuator", actuator, "- PID", pid),
-          x = "Trial",
-          y = "Amplitude",
-          color = NULL,
-          caption = paste0("Final Threshold: ", ifelse(!is.na(avg_value), round(avg_value, 4), "N/A"))
-        ) + 
-        theme_minimal()
-      
-      # Add reversal points
-      if (reversal_count > 0) {
-        p <- p + geom_point(data = reversal_rows, aes(color = "Reversal"), size = 4, shape = 17)
-      }
-      
-      # Add incorrect points
-      if (nrow(incorrect_data) > 0) {
-        p <- p + geom_point(data = incorrect_data, aes(color = "Incorrect"), size = 2.5, shape = 16)
-      }
-      
-      # Add threshold line
-      if (!is.na(avg_value)) {
-        p <- p + geom_hline(yintercept = avg_value, color = "#E6AB02FF", linetype = "dashed", size = 1)
-      }
-      
-      # Add color scale
-      p <- p + scale_color_manual(values = c("Incorrect" = "#fc8d62", "Reversal" = "#E6AB02FF"))
-      
-      # Store for later combined plotting
-      actuator_plots[[as.character(actuator)]] <- actuator_data
-      
-      # Print individual actuator plot
-      print(p)
-      
-      # Add to threshold results
-      if (!is.na(avg_value)) {
-        new_row <- data.frame(
-          PID = pid,
-          device_type = device_type,
-          Actuator = as.character(actuator),
-          Threshold = avg_value,
-          stringsAsFactors = FALSE
-        )
-        threshold_results <- rbind(threshold_results, new_row)
-        cat("    Added to threshold_results - now has", nrow(threshold_results), "rows\n")
+        # If IsReversal is numeric, treat non-zero as TRUE
+        reversal_rows <- actuator_data %>% filter(as.numeric(IsReversal) != 0)
       }
     }
     
-    # Create separate colorful overlay graph for each participant-device
-    if (length(actuator_plots) > 0) {
-      combined_data <- do.call(rbind, actuator_plots)
-      overlay_title <- paste("Amplitude vs Trial (All Actuators) - Device:", device_type, "- PID", pid)
-      overlay_plot <- ggplot(combined_data, aes(x = Trial, y = Amplitude, color = factor(Actuator))) +
-        geom_line() +
-        geom_point(size = 1) +
-        labs(title = overlay_title, x = "Trial", y = "Amplitude", color = "Actuator") +
-        theme_minimal()
-      print(overlay_plot)
+    # No fallback method for reversal detection
+    # Only use the IsReversal column when it exists
+    if (is.null(reversal_rows)) {
+      reversal_rows <- data.frame()  # Empty dataframe if no reversals found
+      cat("  No IsReversal column or no reversals found\n")
     }
-  }, error = function(e) {
-    cat("ERROR processing dataset", i, ":", e$message, "\n")
-  })
+    
+    reversal_count <- nrow(reversal_rows)
+    cat("  Actuator", actuator, "has", reversal_count, "reversal points\n")
+    
+    # Find incorrect responses
+    incorrect_data <- data.frame()  # Default to empty
+    
+    if ("Correct" %in% names(actuator_data)) {
+      if (is.logical(actuator_data$Correct)) {
+        incorrect_data <- actuator_data %>% filter(Correct == FALSE)
+      } else if (is.character(actuator_data$Correct)) {
+        incorrect_data <- actuator_data %>% filter(toupper(Correct) %in% c("FALSE", "F", "NO", "N"))
+      } else {
+        # If Correct is numeric, treat zero as FALSE
+        incorrect_data <- actuator_data %>% filter(as.numeric(Correct) == 0)
+      }
+    }
+    
+    # Compute threshold (average of last 4 reversals or all if fewer)
+    avg_value <- NA
+    if (reversal_count >= 4) {
+      # Make sure we use the last 4 reversals by sorting first
+      reversal_rows <- reversal_rows %>% arrange(Trial)
+      last_four <- tail(reversal_rows, 4)
+      avg_value <- mean(last_four$Amplitude, na.rm = TRUE)
+      cat("    Using last 4 reversals. Amplitudes:", paste(last_four$Amplitude, collapse=", "), "\n")
+      cat("    Calculated threshold:", avg_value, "\n")
+    } else if (reversal_count > 0) {
+      avg_value <- mean(reversal_rows$Amplitude, na.rm = TRUE)
+      cat("    Using all available reversals. Amplitudes:", paste(reversal_rows$Amplitude, collapse=", "), "\n")
+      cat("    Calculated threshold:", avg_value, "\n")
+    } else {
+      # No alternative method - keep as NA
+      avg_value <- NA
+      cat("    No reversals found - threshold calculation not possible\n")
+    }
+    
+    actuator_thresholds[[as.character(actuator)]] <- avg_value
+    
+    # Create plot
+    p <- ggplot(actuator_data, aes(x = Trial, y = Amplitude, group = 1)) +  # Ensure group=1 for connecting trials
+      geom_line(color = "black") +  # Line connecting trials
+      geom_point(size = 3) +  # All points
+      labs(
+        title = paste("Amplitude vs Trial:", device_type, "- Actuator", actuator, "- PID", pid),
+        x = "Trial",
+        y = "Amplitude",
+        color = NULL,
+        caption = paste0("Final Threshold: ", ifelse(!is.na(avg_value), round(avg_value, 4), "N/A"))
+      ) + 
+      theme_minimal()
+    
+    # Add reversal points
+    if (reversal_count > 0) {
+      p <- p + geom_point(data = reversal_rows, aes(color = "Reversal"), size = 4, shape = 17)
+    }
+    
+    # Add incorrect points
+    if (nrow(incorrect_data) > 0) {
+      p <- p + geom_point(data = incorrect_data, aes(color = "Incorrect"), size = 2.5, shape = 16)
+    }
+    
+    # Add threshold line
+    if (!is.na(avg_value)) {
+      p <- p + geom_hline(yintercept = avg_value, color = "#E6AB02FF", linetype = "dashed", size = 1)
+    }
+    
+    # Add color scale
+    p <- p + scale_color_manual(values = c("Incorrect" = "#56B4E9", "Reversal" = "#E6AB02FF"))
+        # Print individual actuator plot
+    print(p)
+    
+    # Store for later combined plotting
+    actuator_plots[[as.character(actuator)]] <- actuator_data
+    
+    # Add to threshold results
+    if (!is.na(avg_value)) {
+      new_row <- data.frame(
+        PID = pid,
+        device_type = device_type,
+        Actuator = as.character(actuator),
+        Threshold = avg_value,
+        stringsAsFactors = FALSE
+      )
+      threshold_results <- rbind(threshold_results, new_row)
+      cat("    Added to threshold_results - now has", nrow(threshold_results), "rows\n")
+    }
+  }
+  
+  # Create separate colorful overlay graph for each participant-device
+  if (length(actuator_plots) > 0) {
+    combined_data <- do.call(rbind, actuator_plots)
+    overlay_title <- paste("Amplitude vs Trial (All Actuators) - Device:", device_type, "- PID", pid)
+    overlay_plot <- ggplot(combined_data, aes(x = Trial, y = Amplitude, color = factor(Actuator))) +
+      geom_line() +
+      geom_point(size = 1) +
+      labs(title = overlay_title, x = "Trial", y = "Amplitude", color = "Actuator") +
+      theme_minimal()
+    print(overlay_plot)
+  }
 }
 
 # Check final results
 cat("\nFinal threshold_results has", nrow(threshold_results), "rows\n")
-
-# Create example data if needed
-if (nrow(threshold_results) == 0) {
-  cat("WARNING: No data was added to threshold_results. Creating example data...\n")
-  
-  # Create example data
-  example_data <- data.frame(
-    PID = rep(c("123", "456"), each = 6),
-    device_type = rep(c("bracelet", "necklace", "overear"), each = 4),
-    Actuator = rep(as.character(0:5), 2),
-    Threshold = runif(12, 0.1, 0.5),
-    stringsAsFactors = FALSE
-  )
-  
-  threshold_results <- example_data
-  cat("Using example data with", nrow(threshold_results), "rows\n")
-}
 
 # Filter out NA thresholds for plotting
 threshold_results_filtered <- threshold_results %>% filter(!is.na(Threshold))
@@ -473,23 +350,18 @@ generate_all_participant_comparisons <- function(data_list, output_dir = "partic
   for (pid in all_pids) {
     cat("Processing participant", pid, "\n")
     output_file <- file.path(output_dir, paste0("participant_", pid, "_devices.png"))
-    tryCatch({
-      plot <- compare_devices_for_participant(pid, data_list, output_file)
-      if (is.null(plot)) {
-        cat("  No plot generated for participant", pid, "\n")
-      } else {
-        cat("  Plot saved for participant", pid, "\n")
-      }
-    }, error = function(e) {
-      cat("  Error processing participant", pid, ":", e$message, "\n")
-    })
+    plot <- compare_devices_for_participant(pid, data_list, output_file)
+    if (is.null(plot)) {
+      cat("  No plot generated for participant", pid, "\n")
+    } else {
+      cat("  Plot saved for participant", pid, "\n")
+    }
   }
   
   cat("All participant plots completed\n")
 }
 
 generate_all_participant_comparisons(data_list, output_dir = "device_comparison_plots")
-
 ```
 
 
@@ -505,8 +377,8 @@ print(head(threshold_results_filtered))
 # Create separate threshold summary graphs for each device type
 for (device in unique(threshold_results_filtered$device_type)) {
   device_data <- threshold_results_filtered %>% filter(device_type == device)
-  if (device == "bracelet") {fill = "#fc8d62"}
-  if (device == "necklace") {fill = "#7570B3FF"}
+  if (device == "bracelet") {fill = "#56B4E9"}
+  if (device == "necklace") {fill = "#009E73"}
   if (device == "overear") {fill = "#E6AB02FF"}
   
   # Skip if there aren't enough data points
@@ -520,7 +392,7 @@ p <- ggplot(device_data, aes(x = Actuator, y = Threshold)) +
   labs(title = paste("Threshold Distribution by Actuator for Device:", device), 
        x = "Actuator", 
        y = "Threshold") +
-   geom_jitter(width = 0.01, height = 0, alpha = 0.7, color = "black", size = 1) +
+   # geom_jitter(width = 0.01, height = 0, alpha = 0.7, color = "black", size = 1) +
   theme_minimal()
 print(p)}
 
@@ -544,7 +416,7 @@ ggplot(device_summary, aes(x = device_type, y = Mean_Threshold, fill = device_ty
   labs(title = "Average Threshold by Device Type",
        x = "Device Type",
        y = "Mean Threshold") +
-  scale_fill_manual(values = c("#fc8d62", "#7570B3FF", "#E6AB02FF")) +
+  scale_fill_manual(values = c("#56B4E9", "#009E73", "#E6AB02FF")) +
   theme_minimal()
 
 all_device_data <- threshold_results_filtered
@@ -563,17 +435,24 @@ improved_horizontal_alt <- ggplot(all_device_data,
                                    y = Threshold, 
                                    fill = device_type,
                                    group = interaction(Actuator, device_type))) +
-  geom_boxplot(position = position_dodge(width = 0.8), width = 0.7) +
- # pink "#fc8d62"
-   scale_fill_manual(values = c("bracelet" = "#fc8d62", "necklace" = "#7570B3FF", "overear" = "#E6AB02FF"),
+  # Use outlier.shape = NA to remove default boxplot outlier points
+  geom_boxplot(position = position_dodge(width = 0.8), 
+               width = 0.7,
+               outlier.shape = NA) +
+  scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF"),
                     name = "Device Type") +
   labs(title = "Threshold Distribution by Actuator and Device Type",
        x = "Actuator",
        y = "Threshold") +
   theme_minimal() +
-  # Use only position_dodge for the jitter
-  geom_point(position = position_jitterdodge(jitter.width = 0.01, dodge.width = 0.8),
-             alpha = 0.7, color = "black", size = 1) +
+  # Make sure color is fixed to blue for ALL points
+  geom_point(aes(color = device_type), 
+             position = position_jitterdodge(jitter.width = 0., dodge.width = 0.8),
+             alpha = 0.5, 
+             size = 1) +
+  # Add a color scale to match points with their device types
+  scale_color_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF"),
+                    guide = "none") +
   theme(
     legend.position = "top",
     legend.title = element_text(size = 12),
@@ -778,7 +657,7 @@ accuracy_by_motor <- localization_combined %>%
 ggplot(accuracy_by_motor, aes(x = Motor, y = Accuracy, color = device_type)) +
   geom_point(size = 3) +
   geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
-  scale_color_manual(values = c("bracelet" = "#fc8d62", "necklace" = "#7570B3FF", "overear" = "#E6AB02FF")) +
+  scale_color_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
   scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
   labs(
     title = "Localization Accuracy by Motor Position",
@@ -926,7 +805,7 @@ accuracy_by_participant$device_type <- tolower(accuracy_by_participant$device_ty
 ggplot(accuracy_by_participant, aes(x = factor(PID), y = Accuracy, fill = device_type)) +
   geom_bar(stat = "identity", position = "dodge") +
   scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
-  scale_fill_manual(values = c("bracelet" = "#fc8d62", "necklace" = "#7570B3FF", "overear" = "#E6AB02FF")) +
+  scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
   labs(
     title = "Localization Accuracy by Participant",
     x = "Participant ID",
@@ -968,7 +847,7 @@ if (!is.null(two_point_combined)) {
     geom_bar(stat = "identity") +
     geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
     scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
-    scale_fill_manual(values = c("bracelet" = "#fc8d62", "necklace" = "#7570B3FF", "overear" = "#E6AB02FF")) +
+    scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
     labs(
       title = "Two-Point Discrimination Accuracy by Device Type",
       x = "Device Type",
@@ -1045,7 +924,7 @@ if (!is.null(two_point_combined)) {
       y = "Average Accuracy"
     ) +
     theme_minimal() +
-    scale_fill_manual(values = c("bracelet" = "#fc8d62", "necklace" = "#7570B3FF", "overear" = "#E6AB02FF"))+
+    scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF"))+
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 }
   
@@ -1410,8 +1289,11 @@ tryCatch({
       bn_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
       bo_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
       no_test <- t.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
-      
-      # Compile results
+```
+
+
+```{r absolute_threshold_stats, echo = FALSE, warning = FALSE, message = FALSE}
+# Compile results
       paired_results$t_value <- c(bn_test$statistic, bo_test$statistic, no_test$statistic)
       paired_results$p_value <- c(bn_test$p.value, bo_test$p.value, no_test$p.value)
       paired_results$p_adjusted <- p.adjust(paired_results$p_value, method = "bonferroni")
