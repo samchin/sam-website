@@ -168,11 +168,11 @@ for (i in seq_along(data_list)) {
     
     # Add threshold line
     if (!is.na(avg_value)) {
-      p <- p + geom_hline(yintercept = avg_value, color = "#E6AB02FF", linetype = "dashed", size = 1)
+      p <- p + geom_hline(yintercept = avg_value, color = "#5C9CFA", linetype = "dashed", size = 1)
     }
     
     # Add color scale
-    p <- p + scale_color_manual(values = c("Incorrect" = "#56B4E9", "Reversal" = "#E6AB02FF"))
+    p <- p + scale_color_manual(values = c("Incorrect" = "#FA8072", "Reversal" = "#5C9CFA"))
         # Print individual actuator plot
     print(p)
     
@@ -272,7 +272,7 @@ all_device_data$position <- as.numeric(all_device_data$Actuator) +
 # Create the improved horizontal plot
 improved_horizontal <- ggplot(all_device_data, aes(x = position, y = Threshold, fill = device_type)) +
   geom_boxplot(width = 0.25) +
-  scale_fill_manual(values = c("bracelet" = "#E69F00", "necklace" = "#56B4E9", "overear" = "#009E73"),
+  scale_fill_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA"),
                     name = "Device Type") +
   # Add custom x-axis breaks and labels for actuator groups
   scale_x_continuous(
@@ -308,7 +308,7 @@ improved_horizontal_alt <- ggplot(all_device_data,
                                    y = Threshold,
                                    fill = device_type)) +
   geom_boxplot(position = position_dodge(width = 0.8), width = 0.7) +
-  scale_fill_manual(values = c("bracelet" = "#E69F00", "necklace" = "#56B4E9", "overear" = "#009E73"),
+  scale_fill_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA"),
                     name = "Device Type") +
   labs(title = "Threshold Distribution by Actuator and Device Type",
        x = "Actuator",
@@ -347,18 +347,18 @@ generate_all_participant_comparisons <- function(data_list, output_dir = "partic
   cat("Found", length(all_pids), "unique participants\n")
   
   # Create plots for each participant
-  for (pid in all_pids) {
-    cat("Processing participant", pid, "\n")
-    output_file <- file.path(output_dir, paste0("participant_", pid, "_devices.png"))
-    plot <- compare_devices_for_participant(pid, data_list, output_file)
-    if (is.null(plot)) {
-      cat("  No plot generated for participant", pid, "\n")
-    } else {
-      cat("  Plot saved for participant", pid, "\n")
-    }
-  }
+  #for (pid in all_pids) {
+    #cat("Processing participant", pid, "\n")
+    #output_file <- file.path(output_dir, paste0("participant_", pid, "_devices.png"))
+   # plot <- compare_devices_for_participant(pid, data_list, output_file)
+   # if (is.null(plot)) {
+    #  cat("  No plot generated for participant", pid, "\n")
+    #} else {
+   #   cat("  Plot saved for participant", pid, "\n")
+   # }
+ # }
   
-  cat("All participant plots completed\n")
+ # cat("All participant plots completed\n")
 }
 
 generate_all_participant_comparisons(data_list, output_dir = "device_comparison_plots")
@@ -377,9 +377,9 @@ print(head(threshold_results_filtered))
 # Create separate threshold summary graphs for each device type
 for (device in unique(threshold_results_filtered$device_type)) {
   device_data <- threshold_results_filtered %>% filter(device_type == device)
-  if (device == "bracelet") {fill = "#56B4E9"}
-  if (device == "necklace") {fill = "#009E73"}
-  if (device == "overear") {fill = "#E6AB02FF"}
+  if (device == "bracelet") {fill = "#FA8072"}
+  if (device == "necklace") {fill = "#66BB6A"}
+  if (device == "overear") {fill = "#5C9CFA"}
   
   # Skip if there aren't enough data points
   if (nrow(device_data) < 2) {
@@ -416,7 +416,7 @@ ggplot(device_summary, aes(x = device_type, y = Mean_Threshold, fill = device_ty
   labs(title = "Average Threshold by Device Type",
        x = "Device Type",
        y = "Mean Threshold") +
-  scale_fill_manual(values = c("#56B4E9", "#009E73", "#E6AB02FF")) +
+  scale_fill_manual(values = c("#FA8072", "#66BB6A", "#5C9CFA")) +
   theme_minimal()
 
 all_device_data <- threshold_results_filtered
@@ -439,7 +439,7 @@ improved_horizontal_alt <- ggplot(all_device_data,
   geom_boxplot(position = position_dodge(width = 0.8), 
                width = 0.7,
                outlier.shape = NA) +
-  scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF"),
+  scale_fill_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA"),
                     name = "Device Type") +
   labs(title = "Threshold Distribution by Actuator and Device Type",
        x = "Actuator",
@@ -451,7 +451,7 @@ improved_horizontal_alt <- ggplot(all_device_data,
              alpha = 0.5, 
              size = 1) +
   # Add a color scale to match points with their device types
-  scale_color_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF"),
+  scale_color_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA"),
                     guide = "none") +
   theme(
     legend.position = "top",
@@ -670,7 +670,7 @@ ggplot(accuracy_by_motor, aes(x = Motor, y = Accuracy, color = device_type)) +
   geom_hline(data = device_averages, 
              aes(yintercept = avg_accuracy, color = device_type),
              linetype = "dashed", size = 1) +
-  scale_color_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
+  scale_color_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")) +
   scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
   labs(
     title = "Localization Accuracy by Motor Position",
@@ -831,8 +831,8 @@ ggplot(accuracy_by_participant, aes(x = factor(PID), y = Accuracy, fill = device
              aes(yintercept = avg_accuracy, color = device_type),
              linetype = "solid", size = 0.6, alpha=0.7) +
   scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
-  scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
-  scale_color_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
+  scale_fill_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")) +
+  scale_color_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")) +
   labs(
     title = "Localization Accuracy by Participant",
     x = "Participant ID",
@@ -875,7 +875,7 @@ if (!is.null(two_point_combined)) {
     geom_bar(stat = "identity") +
     geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
     scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
-    scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF")) +
+    scale_fill_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")) +
     labs(
       title = "Two-Point Discrimination Accuracy by Device Type",
       x = "Device Type",
@@ -884,33 +884,29 @@ if (!is.null(two_point_combined)) {
     my_theme
   
   
-  # Calculate distance between motors
-  two_point_combined$Distance <- abs(two_point_combined$FirstMotor - two_point_combined$SecondMotor)
   
-  # Accuracy by distance between motors
-  accuracy_by_distance <- two_point_combined %>%
-    group_by(device_type, Distance) %>%
-    summarise(
-      Accuracy = mean(Correct, na.rm = TRUE),
-      SE = sd(Correct, na.rm = TRUE) / sqrt(n()),
-      n = n()
-    )
-  
-  # Plot accuracy by distance
-  ggplot(accuracy_by_distance, aes(x = Distance, y = Accuracy, color = device_type)) +
-    geom_point(size = 3) +
-    geom_line(aes(group = device_type)) +
-    geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
+  # PID as factor 
+  accuracy_by_participant$PID <- as.factor(accuracy_by_participant$PID)
+  # Visualize accuracy by participant
+  ggplot(accuracy_by_participant, aes(x = PID, y = Accuracy, fill = device_type)) +
+    geom_bar(stat = "identity", position = "dodge") +
     scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
     labs(
-      title = "Two-Point Discrimination Accuracy by Motor Distance",
-      x = "Distance Between Motors",
+      title = "Two-Point Discrimination Accuracy by Participant",
+      x = "Participant ID",
       y = "Average Accuracy"
     ) +
-    facet_wrap(~ device_type) +
-    my_theme
+    theme_minimal() +
+    scale_fill_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA"))+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+}
   
-  # Accuracy by first motor position
+#convert PID back
+  accuracy_by_participant$PID <- as.numeric(accuracy_by_participant$PID)
+  
+  
+
+    # Accuracy by first motor position
   accuracy_by_first_motor <- two_point_combined %>%
     group_by(device_type, FirstMotor) %>%
     summarise(
@@ -922,7 +918,6 @@ if (!is.null(two_point_combined)) {
   # Plot accuracy by first motor position
   ggplot(accuracy_by_first_motor, aes(x = FirstMotor, y = Accuracy, color = device_type)) +
     geom_point(size = 3) +
-    geom_line(aes(group = device_type)) +
     geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
     scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
     labs(
@@ -941,28 +936,112 @@ if (!is.null(two_point_combined)) {
       n = n()
     )
   
-  # PID as factor 
-  accuracy_by_participant$PID <- as.factor(accuracy_by_participant$PID)
-  # Visualize accuracy by participant
-  ggplot(accuracy_by_participant, aes(x = PID, y = Accuracy, fill = device_type)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
-    labs(
-      title = "Two-Point Discrimination Accuracy by Participant",
-      x = "Participant ID",
-      y = "Average Accuracy"
-    ) +
-    theme_minimal() +
-    scale_fill_manual(values = c("bracelet" = "#56B4E9", "necklace" = "#009E73", "overear" = "#E6AB02FF"))+
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
-}
+
+    # Calculate distance between motors
+  two_point_combined$Distance <- abs(two_point_combined$FirstMotor - two_point_combined$SecondMotor)
   
-#convert PID back
-  accuracy_by_participant$PID <- as.numeric(accuracy_by_participant$PID)
+  # Accuracy by distance between motors
+  accuracy_by_distance <- two_point_combined %>%
+    group_by(device_type, Distance) %>%
+    summarise(
+      Accuracy = mean(Correct, na.rm = TRUE),
+      SE = sd(Correct, na.rm = TRUE) / sqrt(n()),
+      n = n()
+    )
+  
+print(accuracy_by_distance)
+
+
+
+
+  
+  
 
 ```
+# two point and localization on the same graph 
+```{r two_point_and_localization, echo = FALSE, warning = FALSE, message = FALSE}
+# Combined plot of two-point discrimination and localization accuracy
+# First, prepare the data frames with a new column to distinguish the data source
+# Add data source column to two-point data
+accuracy_by_first_motor$data_source <- "Two-Point Discrimination"
+# Add data source column to localization data
+accuracy_by_motor$data_source <- "Localization"
+# Rename columns to match (if needed)
+# Assuming FirstMotor in accuracy_by_first_motor corresponds to Motor in accuracy_by_motor
+names(accuracy_by_first_motor)[names(accuracy_by_first_motor) == "FirstMotor"] <- "Motor"
+# Combine the data frames
+combined_data <- bind_rows(accuracy_by_first_motor, accuracy_by_motor)
 
+# Calculate averages by device type and data source for reference lines
+avg_by_type <- combined_data %>%
+  group_by(device_type, data_source) %>%
+  summarise(avg_accuracy = mean(Accuracy, na.rm = TRUE))
 
+# Create the combined plot
+ggplot() +
+  # Use the same position_dodge object for both points and error bars
+  # to ensure they align properly
+  {
+    # Create a consistent position dodge
+    pd <- position_dodge(width = 0.3)
+    
+    # Use that position dodge for both geom_point and geom_errorbar
+    list(
+      # Points with different shapes for the two data sources, colors for device types
+      geom_point(data = combined_data, 
+                aes(x = Motor, y = Accuracy, color = device_type, shape = data_source),
+                size = 3, position = pd),
+      
+      # Error bars
+      geom_errorbar(data = combined_data,
+                   aes(x = Motor, y = Accuracy, 
+                       ymin = Accuracy - SE, ymax = Accuracy + SE,
+                       color = device_type, group = interaction(device_type, data_source)), 
+                   width = 0.2, 
+                   position = pd)
+    )
+  } +
+  # Add average lines - solid for localization
+  geom_hline(data = avg_by_type %>% filter(data_source == "Localization"),
+             aes(yintercept = avg_accuracy, color = device_type),
+             linetype = "solid") +
+  # Add average lines - dashed for two-point
+  geom_hline(data = avg_by_type %>% filter(data_source == "Two-Point Discrimination"),
+             aes(yintercept = avg_accuracy, color = device_type),
+             linetype = "dashed") +
+  # Use open circles for Two-Point Discrimination
+  scale_shape_manual(values = c("Two-Point Discrimination" = 1, "Localization" = 16)) +
+  # Customize colors for device types
+  scale_color_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")) +
+  # Format y-axis as percentage
+  scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+  # Labels
+  labs(
+    title = "Accuracy by Motor Position",
+    subtitle = "Comparing Two-Point Discrimination and Localization Accuracy",
+    x = "Motor Position",
+    y = "Average Accuracy",
+    color = "Device Type",
+    shape = "Measure Type"
+  ) +
+  # Facet by device type
+  facet_wrap(~ device_type) +
+  # Apply your custom theme
+  my_theme +
+  # Additional theme customizations
+  theme(
+    legend.position = "bottom",
+    legend.box = "vertical",  # Stack legends vertically
+    legend.margin = margin(t = 5, b = 5),
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8),
+    legend.key.size = unit(0.8, "lines"),
+    panel.grid.major.y = element_line(color = "gray90"),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(hjust = 0.5),      # Center title
+    plot.subtitle = element_text(hjust = 0.5)    # Center subtitle
+  )
+```
 
 ### Statistical Tests
 
@@ -1197,176 +1276,341 @@ if(any(list_cols)) {
 # Ensure all numeric columns are properly formatted
 threshold_results_filtered$Threshold <- as.numeric(as.character(threshold_results_filtered$Threshold))
 threshold_results_filtered$Actuator <- as.character(threshold_results_filtered$Actuator)
-
 threshold_results_filtered$bracelet <- unlist(threshold_results_filtered$bracelet)
 threshold_results_filtered$necklace <- unlist(threshold_results_filtered$necklace)
 threshold_results_filtered$overear <- unlist(threshold_results_filtered$overear)
-
-
 threshold_results_filtered$Threshold <- unlist(threshold_results_filtered$Threshold)
-
 
 # Check for NA values introduced during conversion
 na_counts <- sapply(threshold_results_filtered, function(x) sum(is.na(x)))
 cat("NA counts after conversion:", paste(names(na_counts), na_counts, sep="=", collapse=", "), "\n")
 
 # Reshape data to wide format with better error handling
-tryCatch({
-  # Print first few rows of the input data
-  cat("First few rows of threshold_results_filtered:\n")
-  print(head(threshold_results_filtered))
-  
-  # Reshape data to wide format for paired tests
-  threshold_wide <- tidyr::pivot_wider(
-    threshold_results_filtered,
-    id_cols = c(PID, Actuator),
-    names_from = device_type,
-    values_from = Threshold
-  )
-  
-  # Print first few rows of wide data
-  cat("\nFirst few rows of threshold_wide:\n")
-  print(head(threshold_wide))
-  
-  # Check for missing values and remove rows with NAs to enable paired tests
-  threshold_wide_complete <- na.omit(threshold_wide)
-  
-  # Print first few rows of complete data
-  cat("\nFirst few rows of threshold_wide_complete:\n")
-  print(head(threshold_wide_complete))
-  
-  # Ensure all columns are numeric
-  threshold_wide_complete$bracelet <- as.numeric(as.character(threshold_wide_complete$bracelet))
-  threshold_wide_complete$necklace <- as.numeric(as.character(threshold_wide_complete$necklace))
-  threshold_wide_complete$overear <- as.numeric(as.character(threshold_wide_complete$overear))
-  
-  # Check data structure before proceeding
-  cat("\nStructure of threshold_wide_complete:\n")
-  print(str(threshold_wide_complete))
-  
-  # Now it's safe to proceed with the statistical tests
-  if(nrow(threshold_wide_complete) >= 3) {
-    cat("\nRunning Shapiro-Wilk tests for normality:\n")
-    tryCatch({
-      # Calculate differences explicitly
-      bn_diff <- threshold_wide_complete$bracelet - threshold_wide_complete$necklace
-      bo_diff <- threshold_wide_complete$bracelet - threshold_wide_complete$overear
-      no_diff <- threshold_wide_complete$necklace - threshold_wide_complete$overear
-      
-      # Check for NA or NaN values
-      cat("NA/NaN counts in differences: bn=", sum(is.na(bn_diff)), 
-          ", bo=", sum(is.na(bo_diff)), 
-          ", no=", sum(is.na(no_diff)), "\n")
-      
-      # Run tests
-      if(sum(!is.na(bn_diff)) >= 3) print(shapiro.test(na.omit(bn_diff)))
-      if(sum(!is.na(bo_diff)) >= 3) print(shapiro.test(na.omit(bo_diff)))
-      if(sum(!is.na(no_diff)) >= 3) print(shapiro.test(na.omit(no_diff)))
-    }, error = function(e) {
-      cat("Error in Shapiro-Wilk tests:", e$message, "\n")
-    })
-  } else {
-    cat("Not enough complete data for Shapiro-Wilk tests\n")
-  }
-  
-  # Create data frame for repeated measures ANOVA
-  cat("\nPreparing data for repeated measures ANOVA\n")
-  threshold_long <- tidyr::pivot_longer(
-    threshold_wide_complete,
-    cols = c("bracelet", "necklace", "overear"),
-    names_to = "device_type",
-    values_to = "Threshold"
-  )
-  
-  
-  
-  # Run ANOVA if there's enough data
-  if(nrow(threshold_long) >= 5 && length(unique(threshold_long$PID)) >= 2) {
-    cat("\nRunning repeated measures ANOVA\n")
-    tryCatch({
-      aov_model <- aov(Threshold ~ device_type + Error(PID/device_type), data = threshold_long)
-      print(summary(aov_model))
-    }, error = function(e) {
-      cat("Error in ANOVA:", e$message, "\n")
-    })
-  } else {
-    cat("Not enough data for repeated measures ANOVA\n")
-  }
-  
-  # Only run t-tests if we have enough data
-  if(nrow(threshold_wide_complete) >= 2) {
-    cat("\nRunning paired t-tests\n")
-    # Initialize results dataframe
-    paired_results <- data.frame(
-      Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
-      t_value = NA,
-      p_value = NA,
-      p_adjusted = NA
+tryCatch(
+  {
+    # Print first few rows of the input data
+    cat("First few rows of threshold_results_filtered:\n")
+    print(head(threshold_results_filtered))
+    
+    # Reshape data to wide format for paired tests
+    threshold_wide <- tidyr::pivot_wider(
+      threshold_results_filtered,
+      id_cols = c(PID, Actuator),
+      names_from = device_type,
+      values_from = Threshold
     )
     
-    # Run t-tests with error handling
-    tryCatch({
-      bn_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
-      bo_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
-      no_test <- t.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
-```
-
-
-```{r absolute_threshold_stats, echo = FALSE, warning = FALSE, message = FALSE}
-# Compile results
-      paired_results$t_value <- c(bn_test$statistic, bo_test$statistic, no_test$statistic)
-      paired_results$p_value <- c(bn_test$p.value, bo_test$p.value, no_test$p.value)
-      paired_results$p_adjusted <- p.adjust(paired_results$p_value, method = "bonferroni")
-      
-      # Print results
-      print(paired_results)
-    }, error = function(e) {
-      cat("Error in paired t-tests:", e$message, "\n")
-    })
-  } else {
-    cat("Not enough data for paired t-tests\n")
-  }
-  
-  # Run non-parametric alternatives
-  if(nrow(threshold_wide_complete) >= 2) {
-    cat("\nRunning Wilcoxon signed-rank tests\n")
-    # Initialize results dataframe
-    wilcox_results <- data.frame(
-      Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
-      V_statistic = NA,
-      p_value = NA,
-      p_adjusted = NA
+    # Print first few rows of wide data
+    cat("\nFirst few rows of threshold_wide:\n")
+    print(head(threshold_wide))
+    
+    # Check for missing values and remove rows with NAs to enable paired tests
+    threshold_wide_complete <- na.omit(threshold_wide)
+    
+    # Print first few rows of complete data
+    cat("\nFirst few rows of threshold_wide_complete:\n")
+    print(head(threshold_wide_complete))
+    
+    # Ensure all columns are numeric
+    threshold_wide_complete$bracelet <- as.numeric(as.character(threshold_wide_complete$bracelet))
+    threshold_wide_complete$necklace <- as.numeric(as.character(threshold_wide_complete$necklace))
+    threshold_wide_complete$overear <- as.numeric(as.character(threshold_wide_complete$overear))
+    
+    # Check data structure before proceeding
+    cat("\nStructure of threshold_wide_complete:\n")
+    print(str(threshold_wide_complete))
+    
+    # Now it's safe to proceed with the statistical tests
+    if(nrow(threshold_wide_complete) >= 3) {
+      cat("\nRunning Shapiro-Wilk tests for normality:\n")
+      tryCatch(
+        {
+          # Calculate differences explicitly
+          bn_diff <- threshold_wide_complete$bracelet - threshold_wide_complete$necklace
+          bo_diff <- threshold_wide_complete$bracelet - threshold_wide_complete$overear
+          no_diff <- threshold_wide_complete$necklace - threshold_wide_complete$overear
+          
+          # Check for NA or NaN values
+          cat("NA/NaN counts in differences: bn=", sum(is.na(bn_diff)),
+              ", bo=", sum(is.na(bo_diff)),
+              ", no=", sum(is.na(no_diff)), "\n")
+          
+          # Run tests
+          if(sum(!is.na(bn_diff)) >= 3) print(shapiro.test(na.omit(bn_diff)))
+          if(sum(!is.na(bo_diff)) >= 3) print(shapiro.test(na.omit(bo_diff)))
+          if(sum(!is.na(no_diff)) >= 3) print(shapiro.test(na.omit(no_diff)))
+        }, 
+        error = function(e) {
+          cat("Error in Shapiro-Wilk tests:", e$message, "\n")
+        }
+      )
+    } else {
+      cat("Not enough complete data for Shapiro-Wilk tests\n")
+    }
+    
+    # Create data frame for repeated measures ANOVA
+    cat("\nPreparing data for repeated measures ANOVA\n")
+    threshold_long <- tidyr::pivot_longer(
+      threshold_wide_complete,
+      cols = c("bracelet", "necklace", "overear"),
+      names_to = "device_type",
+      values_to = "Threshold"
     )
     
-    # Run tests with error handling
-    tryCatch({
-      bn_wilcox <- wilcox.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
-      bo_wilcox <- wilcox.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
-      no_wilcox <- wilcox.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
+    # Run ANOVA if there's enough data
+    if(nrow(threshold_long) >= 5 && length(unique(threshold_long$PID)) >= 2) {
+      cat("\nRunning repeated measures ANOVA\n")
+      tryCatch(
+        {
+          aov_model <- aov(Threshold ~ device_type + Error(PID/device_type), data = threshold_long)
+          print(summary(aov_model))
+        }, 
+        error = function(e) {
+          cat("Error in ANOVA:", e$message, "\n")
+        }
+      )
+    } else {
+      cat("Not enough data for repeated measures ANOVA\n")
+    }
+    
+    # Only run t-tests if we have enough data
+    if(nrow(threshold_wide_complete) >= 2) {
+      cat("\nRunning paired t-tests\n")
+      # Initialize results dataframe
+      paired_results <- data.frame(
+        Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
+        t_value = NA,
+        p_value = NA,
+        p_adjusted = NA
+      )
       
-      # Compile results
-      wilcox_results$V_statistic <- c(bn_wilcox$statistic, bo_wilcox$statistic, no_wilcox$statistic)
-      wilcox_results$p_value <- c(bn_wilcox$p.value, bo_wilcox$p.value, no_wilcox$p.value)
-      wilcox_results$p_adjusted <- p.adjust(wilcox_results$p_value, method = "bonferroni")
-      
-      # Print results
-      print(wilcox_results)
-    }, error = function(e) {
-      cat("Error in Wilcoxon tests:", e$message, "\n")
-    })
-  } else {
-    cat("Not enough data for Wilcoxon tests\n")
+      tryCatch(
+        {
+          bn_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
+          bo_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
+          no_test <- t.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
+          
+          # Store results
+          paired_results$t_value[1] <- bn_test$statistic
+          paired_results$p_value[1] <- bn_test$p.value
+          
+          paired_results$t_value[2] <- bo_test$statistic
+          paired_results$p_value[2] <- bo_test$p.value
+          
+          paired_results$t_value[3] <- no_test$statistic
+          paired_results$p_value[3] <- no_test$p.value
+          
+          # Apply Bonferroni correction
+          paired_results$p_adjusted <- p.adjust(paired_results$p_value, method = "bonferroni")
+          
+          # Print results
+          print(paired_results)
+        },
+        error = function(e) {
+          cat("Error in paired t-tests:", e$message, "\n")
+        }
+      )
+    } else {
+      cat("Not enough data for paired t-tests\n")
+    }
+  },
+  error = function(e) {
+    cat("Error in data preparation:", e$message, "\n")
   }
-}, error = function(e) {
-  cat("Error in data reshaping or analysis:", e$message, "\n")
+)
+
+# First, inspect the threshold_results_filtered to understand its structure
+str(threshold_results_filtered)
+
+# Check for potential list columns that need to be converted
+list_cols <- sapply(threshold_results_filtered, is.list)
+if(any(list_cols)) {
+  cat("Warning: Found list columns that need to be unpacked:", 
+      paste(names(threshold_results_filtered)[list_cols], collapse=", "), "\n")
   
-  # Try to provide more detailed diagnostics
-  cat("\nDiagnostics for troubleshooting:\n")
-  cat("threshold_results_filtered class:", class(threshold_results_filtered), "\n")
-  cat("threshold_results_filtered dimensions:", dim(threshold_results_filtered), "\n")
-  cat("Column classes:\n")
-  print(sapply(threshold_results_filtered, class))
-})
+  # Try to unpack list columns
+  for(col in names(threshold_results_filtered)[list_cols]) {
+    cat("Unpacking list column:", col, "\n")
+    # If it's a simple list of length 1 elements, try to unlist
+    try({
+      threshold_results_filtered[[col]] <- unlist(threshold_results_filtered[[col]])
+      cat("Successfully unpacked", col, "\n")
+    }, silent = TRUE)
+  }
+}
+
+# Ensure all numeric columns are properly formatted
+threshold_results_filtered$Threshold <- as.numeric(as.character(threshold_results_filtered$Threshold))
+threshold_results_filtered$Actuator <- as.character(threshold_results_filtered$Actuator)
+threshold_results_filtered$bracelet <- unlist(threshold_results_filtered$bracelet)
+threshold_results_filtered$necklace <- unlist(threshold_results_filtered$necklace)
+threshold_results_filtered$overear <- unlist(threshold_results_filtered$overear)
+threshold_results_filtered$Threshold <- unlist(threshold_results_filtered$Threshold)
+
+# Check for NA values introduced during conversion
+na_counts <- sapply(threshold_results_filtered, function(x) sum(is.na(x)))
+cat("NA counts after conversion:", paste(names(na_counts), na_counts, sep="=", collapse=", "), "\n")
+
+# Reshape data to wide format with better error handling
+tryCatch(
+  {
+    # Print first few rows of the input data
+    cat("First few rows of threshold_results_filtered:\n")
+    print(head(threshold_results_filtered))
+    
+    # Reshape data to wide format for paired tests
+    threshold_wide <- tidyr::pivot_wider(
+      threshold_results_filtered,
+      id_cols = c(PID, Actuator),
+      names_from = device_type,
+      values_from = Threshold
+    )
+    
+    # Print first few rows of wide data
+    cat("\nFirst few rows of threshold_wide:\n")
+    print(head(threshold_wide))
+    
+    # Check for missing values and remove rows with NAs to enable paired tests
+    threshold_wide_complete <- na.omit(threshold_wide)
+    
+    # Print first few rows of complete data
+    cat("\nFirst few rows of threshold_wide_complete:\n")
+    print(head(threshold_wide_complete))
+    
+    # Ensure all columns are numeric
+    threshold_wide_complete$bracelet <- as.numeric(as.character(threshold_wide_complete$bracelet))
+    threshold_wide_complete$necklace <- as.numeric(as.character(threshold_wide_complete$necklace))
+    threshold_wide_complete$overear <- as.numeric(as.character(threshold_wide_complete$overear))
+    
+    # Check data structure before proceeding
+    cat("\nStructure of threshold_wide_complete:\n")
+    print(str(threshold_wide_complete))
+    
+    # Now it's safe to proceed with the statistical tests
+    if(nrow(threshold_wide_complete) >= 3) {
+      cat("\nRunning Shapiro-Wilk tests for normality:\n")
+      tryCatch(
+        {
+          # Calculate differences explicitly
+          bn_diff <- threshold_wide_complete$bracelet - threshold_wide_complete$necklace
+          bo_diff <- threshold_wide_complete$bracelet - threshold_wide_complete$overear
+          no_diff <- threshold_wide_complete$necklace - threshold_wide_complete$overear
+          
+          # Check for NA or NaN values
+          cat("NA/NaN counts in differences: bn=", sum(is.na(bn_diff)),
+              ", bo=", sum(is.na(bo_diff)),
+              ", no=", sum(is.na(no_diff)), "\n")
+          
+          # Run tests
+          if(sum(!is.na(bn_diff)) >= 3) print(shapiro.test(na.omit(bn_diff)))
+          if(sum(!is.na(bo_diff)) >= 3) print(shapiro.test(na.omit(bo_diff)))
+          if(sum(!is.na(no_diff)) >= 3) print(shapiro.test(na.omit(no_diff)))
+        }, 
+        error = function(e) {
+          cat("Error in Shapiro-Wilk tests:", e$message, "\n")
+        }
+      )
+    } else {
+      cat("Not enough complete data for Shapiro-Wilk tests\n")
+    }
+    
+    # Create data frame for repeated measures ANOVA
+    cat("\nPreparing data for repeated measures ANOVA\n")
+    threshold_long <- tidyr::pivot_longer(
+      threshold_wide_complete,
+      cols = c("bracelet", "necklace", "overear"),
+      names_to = "device_type",
+      values_to = "Threshold"
+    )
+    
+    # Run ANOVA if there's enough data
+    if(nrow(threshold_long) >= 5 && length(unique(threshold_long$PID)) >= 2) {
+      cat("\nRunning repeated measures ANOVA\n")
+      tryCatch(
+        {
+          aov_model <- aov(Threshold ~ device_type + Error(PID/device_type), data = threshold_long)
+          print(summary(aov_model))
+        }, 
+        error = function(e) {
+          cat("Error in ANOVA:", e$message, "\n")
+        }
+      )
+    } else {
+      cat("Not enough data for repeated measures ANOVA\n")
+    }
+    
+    # Only run t-tests if we have enough data
+    if(nrow(threshold_wide_complete) >= 2) {
+      cat("\nRunning paired t-tests\n")
+      # Initialize results dataframe
+      paired_results <- data.frame(
+        Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
+        t_value = NA,
+        p_value = NA,
+        p_adjusted = NA
+      )
+      
+      tryCatch({
+        bn_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
+        bo_test <- t.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
+        no_test <- t.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
+        
+        # Compile results
+        paired_results$t_value <- c(bn_test$statistic, bo_test$statistic, no_test$statistic)
+        paired_results$p_value <- c(bn_test$p.value, bo_test$p.value, no_test$p.value)
+        paired_results$p_adjusted <- p.adjust(paired_results$p_value, method = "bonferroni")
+        
+        # Print results
+        print(paired_results)
+      }, error = function(e) {
+        cat("Error in paired t-tests:", e$message, "\n")
+      })
+    } else {
+      cat("Not enough data for paired t-tests\n")
+    }
+    
+    # Run non-parametric alternatives
+    if(nrow(threshold_wide_complete) >= 2) {
+      cat("\nRunning Wilcoxon signed-rank tests\n")
+      # Initialize results dataframe
+      wilcox_results <- data.frame(
+        Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
+        V_statistic = NA,
+        p_value = NA,
+        p_adjusted = NA
+      )
+      
+      # Run tests with error handling
+      tryCatch({
+        bn_wilcox <- wilcox.test(threshold_wide_complete$bracelet, threshold_wide_complete$necklace, paired = TRUE)
+        bo_wilcox <- wilcox.test(threshold_wide_complete$bracelet, threshold_wide_complete$overear, paired = TRUE)
+        no_wilcox <- wilcox.test(threshold_wide_complete$necklace, threshold_wide_complete$overear, paired = TRUE)
+        
+        # Compile results
+        wilcox_results$V_statistic <- c(bn_wilcox$statistic, bo_wilcox$statistic, no_wilcox$statistic)
+        wilcox_results$p_value <- c(bn_wilcox$p.value, bo_wilcox$p.value, no_wilcox$p.value)
+        wilcox_results$p_adjusted <- p.adjust(wilcox_results$p_value, method = "bonferroni")
+        
+        # Print results
+        print(wilcox_results)
+      }, error = function(e) {
+        cat("Error in Wilcoxon tests:", e$message, "\n")
+      })
+    } else {
+      cat("Not enough data for Wilcoxon tests\n")
+    }
+  },
+  error = function(e) {
+    cat("Error in data reshaping or analysis:", e$message, "\n")
+    
+    # Try to provide more detailed diagnostics
+    cat("\nDiagnostics for troubleshooting:\n")
+    cat("threshold_results_filtered class:", class(threshold_results_filtered), "\n")
+    cat("threshold_results_filtered dimensions:", dim(threshold_results_filtered), "\n")
+    cat("Column classes:\n")
+    print(sapply(threshold_results_filtered, class))
+  }
+)
 ```
 
 
@@ -1475,6 +1719,9 @@ loc_results <- data.frame(
   p_adjusted = loc_p_adjusted
 )
 print(loc_results)
+print(loc_aov)
+
+summary(loc_wide_complete)
 ```
 
 ##Localization between motors 
@@ -1526,8 +1773,8 @@ for (device in unique(localization_for_motor$device_type)) {
   }
 }
 ```
-## Two point accuracy 
 
+## Two point accuracy 
 ```{r two_point_accuracy_stats, echo = FALSE, warning = FALSE, message = FALSE}
 # Create participant-level summary data
 tp_summary <- two_point_combined %>%
@@ -1583,6 +1830,8 @@ tp_results <- data.frame(
   p_adjusted = tp_p_adjusted
 )
 print(tp_results)
+
+
 ```
 
 
@@ -1707,7 +1956,8 @@ ggplot(questionnaire_data, aes(x = Q55)) +
 cat("\n\n=== ABSOLUTE THRESHOLD ANALYSIS BY DEVICE ===\n")
 
 
-threshold_with_neck$PID = as.character(threshold_with_neck$PID)
+
+threshold_results_filtered$PID = as.character(threshold_results_filtered$PID)
 questionnaire_data$PID = as.character(questionnaire_data$PID)
 
 # Merge threshold data with questionnaire data
@@ -1876,13 +2126,15 @@ cat("\nColumn names in tp_summary:\n")
 print(names(tp_summary))
 
 
+tp_summary$PID = as.numeric(tp_summary$PID)
+questionnaire_data$PID = as.numeric(questionnaire_data$PID)
 
 # Apply same logic as with localization data
 # Option 1: If data is already in long format
 if ("device_type" %in% names(tp_summary)) {
   # Convert PID to character for joining
   tp_with_neck <- tp_summary %>%
-    mutate(PID = numeric(PID)) %>%
+    mutate(PID = as.numeric(as.character(PID))) %>%
     inner_join(questionnaire_data %>% select(PID, Q55), by = "PID")
   
   # Data is already in correct format
@@ -2050,6 +2302,8 @@ cat("\n\n=== WRIST SIZE ANALYSIS - BRACELET DEVICE ONLY ===\n")
 
 # Analyze the relationship between wrist size (Q58) and performance with the bracelet device
 
+threshold_results_filtered$PID = as.numeric(threshold_results_filtered$PID)
+
 # For threshold data
 bracelet_threshold <- threshold_results_filtered %>%
   filter(device_type == "bracelet") %>%
@@ -2071,6 +2325,10 @@ if (nrow(bracelet_threshold) > 5) {
 } else {
   cat("Insufficient data for bracelet threshold vs wrist size analysis\n")
 }
+
+loc_summary$PID = as.numeric(loc_summary$PID)
+questionnaire_data$PID = as.numeric(questionnaire_data$PID)
+
 
 # For localization data - handle both potential data structures
 if ("device_type" %in% names(loc_summary)) {
@@ -2309,7 +2567,7 @@ wrist_effects$Label <- factor(wrist_effects$Label,
                              levels = wrist_effects$Label[order(wrist_effects$Measure, wrist_effects$Device)])
 
 # Use device-specific colors
-device_colors <- c("bracelet" = "#E69F00", "necklace" = "#56B4E9", "overear" = "#009E73")
+device_colors <- c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")
 
 # Create forest plot of all device-specific effects for wrist size
 if (nrow(wrist_effects) > 0) {
@@ -2358,17 +2616,10 @@ library(lme4)
 library(car)
 
 # Display summary statistics for age
-cat("Summary of age (Q1):\n")
-summary(questionnaire_data$Q1)
-cat("\nStandard deviation:", sd(questionnaire_data$Q1, na.rm = TRUE), "\n")
-questionnaire_data$Q1 <- as.numeric(as.character(questionnaire_data$Q1))
+cat("Summary of age (Age):\n")
+summary(questionnaire_data$Age)
+cat("\nStandard deviation:", sd(questionnaire_data$Age, na.rm = TRUE), "\n")
 
-
-# Create histogram of age distribution
-ggplot(questionnaire_data, aes(x = Q1)) +
-  geom_histogram(bins = 10, fill = "green", alpha = 0.7) +
-  labs(title = "Distribution of Participant Ages", x = "Age (years)", y = "Count") +
-  theme_minimal()
 
 # Ensure PIDs are numeric type for joining
 questionnaire_data$PID <- as.numeric(questionnaire_data$PID)
@@ -2388,13 +2639,14 @@ questionnaire_data$PID <- as.character(questionnaire_data$PID)
 
 # Merge threshold data with questionnaire data
 threshold_with_age <- threshold_results_filtered %>%
-  inner_join(questionnaire_data %>% select(PID, Q1), by = "PID")
+  inner_join(questionnaire_data %>% select(PID, Age), by = "PID")
 
 # Check the merged dataset 
 cat("\nRows in merged threshold data:", nrow(threshold_with_age), "\n")
 
 # Device-specific models for threshold data
 for (device in unique(threshold_with_age$device_type)) {
+  
   device_data <- threshold_with_age %>% filter(device_type == device)
   
   cat("\n--- Absolute Threshold: Device =", device, "---\n")
@@ -2404,19 +2656,20 @@ for (device in unique(threshold_with_age$device_type)) {
     # Summary statistics
     cat("Summary statistics for this device:\n")
     print(summary(device_data$Threshold))
-    
+     device_data$Age <- as.numeric(device_data$Age)
     # Correlation test
-    cor_test <- cor.test(device_data$Q1, device_data$Threshold)
+    cor_test <- cor.test(device_data$Age, device_data$Threshold)
     cat("\nCorrelation between age and threshold:\n")
     cat("r =", round(cor_test$estimate, 3), ", p =", round(cor_test$p.value, 3), "\n")
     
     # Linear model
-    device_model <- lm(Threshold ~ Q1, data = device_data)
+    device_model <- lm(Threshold ~ Age, data = device_data)
     cat("\nLinear model for this device:\n")
     print(summary(device_model))
     
+    device_data$Age <- as.numeric(device_data$Age)
     # Plot
-    p <- ggplot(device_data, aes(x = Q1, y = Threshold)) +
+    p <- ggplot(device_data, aes(x = Age, y = Threshold)) +
       geom_point() +
       geom_smooth(method = "lm") +
       labs(title = paste("Age vs Threshold -", device),
@@ -2439,15 +2692,16 @@ cat("Structure of loc_summary:\n")
 str(loc_summary)
 
 # Ensure PIDs are character type
-loc_summary$PID <- as.numeric(loc_summary$PID)
+questionnaire_data$PID <- as.numeric(questionnaire_data$PID)
 
-loc_summary$PID <- as.character(loc_summary$PID)
+tp_summary$PID <- as.numeric(tp_summary$PID)
+
 # Merge localization data with questionnaire data
 # Check if data is already in long format with device_type column
 if ("device_type" %in% names(tp_summary)) {
   # Data is already in long format
   tp_with_age <- tp_summary %>%
-    inner_join(questionnaire_data %>% select(PID, Q1), by = "PID")
+    inner_join(questionnaire_data %>% select(PID, Age), by = "PID")
 } else {
   # Option 2: If data is in wide format
   possible_device_cols <- c("bracelet", "necklace", "overear",
@@ -2457,7 +2711,7 @@ if ("device_type" %in% names(tp_summary)) {
   if (length(device_cols) > 0) {
     # Convert to long format
     tp_with_age <- tp_summary %>%
-      inner_join(questionnaire_data %>% select(PID, Q1), by = "PID") %>%
+      inner_join(questionnaire_data %>% select(PID, Age), by = "PID") %>%
       pivot_longer(
         cols = all_of(device_cols),
         names_to = "device_type",
@@ -2475,12 +2729,10 @@ if ("device_type" %in% names(tp_summary)) {
       PID = character(),
       device_type = character(),
       Accuracy = numeric(),
-      Q1 = numeric()
+      Age = numeric()
     )
   }
 }
-
-
 # Device-specific models for localization data
 for (device in unique(loc_long$device_type)) {
   device_data <- loc_long %>% filter(device_type == device)
@@ -2488,30 +2740,108 @@ for (device in unique(loc_long$device_type)) {
   cat("\n--- Localization Accuracy: Device =", device, "---\n")
   cat("Number of observations:", nrow(device_data), "\n")
   
+  # Debug: Check if Age column exists
+  cat("Columns in device_data:", paste(names(device_data), collapse=", "), "\n")
+  
   if (nrow(device_data) > 5) {
     # Summary statistics
     cat("Summary statistics for this device:\n")
     print(summary(device_data$Accuracy))
     
-    # Correlation test
-    cor_test <- cor.test(device_data$Q1, device_data$Accuracy)
-    cat("\nCorrelation between age and accuracy:\n")
-    cat("r =", round(cor_test$estimate, 3), ", p =", round(cor_test$p.value, 3), "\n")
+    device_data$Accuracy <- as.numeric(device_data$Accuracy)
     
-    # Linear model
-    device_model <- lm(Accuracy ~ Q1, data = device_data)
-    cat("\nLinear model for this device:\n")
-    print(summary(device_model))
-    
-    # Plot
-    p <- ggplot(device_data, aes(x = Q1, y = Accuracy)) +
-      geom_point() +
-      geom_smooth(method = "lm") +
-      labs(title = paste("Age vs Localization Accuracy -", device),
-           x = "Age (years)", 
-           y = "Accuracy") +
-      theme_minimal()
-    print(p)
+    # Check if Age column exists
+    if ("Age" %in% names(device_data)) {
+      # Try to convert Age to numeric
+      temp_age <- suppressWarnings(as.numeric(as.character(device_data$Age)))
+      
+      # Check if conversion worked
+      if (all(is.na(temp_age))) {
+        cat("Error: Failed to convert Age to numeric - all values became NA\n")
+        
+        # Debug info
+        cat("First few values of Age column:\n")
+        print(head(device_data$Age))
+      } else if (length(temp_age) == 0) {
+        cat("Error: Age column exists but has length 0\n")
+      } else {
+        # Assign converted values
+        device_data$Age <- temp_age
+        
+        # Proceed with analysis
+        # Correlation test
+        cor_test <- cor.test(device_data$Age, device_data$Accuracy)
+        cat("\nCorrelation between age and accuracy:\n")
+        cat("r =", round(cor_test$estimate, 3), ", p =", round(cor_test$p.value, 3), "\n")
+        
+        # Linear model
+        device_model <- lm(Accuracy ~ Age, data = device_data)
+        cat("\nLinear model for this device:\n")
+        print(summary(device_model))
+        
+        # Plot
+        p <- ggplot(device_data, aes(x = Age, y = Accuracy)) +
+          geom_point() +
+          geom_smooth(method = "lm") +
+          labs(title = paste("Age vs Localization Accuracy -", device),
+               x = "Age (years)", 
+               y = "Accuracy") +
+          theme_minimal()
+        print(p)
+      }
+    } else {
+      cat("Error: Age column does not exist in the dataset\n")
+      
+      # Alternative: Try to join with questionnaire data here
+      cat("Attempting to join with questionnaire data to get Age...\n")
+      
+      # Check if PID exists for joining
+      if ("PID" %in% names(device_data) && "PID" %in% names(questionnaire_data) && "Age" %in% names(questionnaire_data)) {
+        # Convert PIDs to same type
+        device_data$PID <- as.character(device_data$PID)
+        questionnaire_data_temp <- questionnaire_data %>% 
+          select(PID, Age) %>%
+          mutate(PID = as.character(PID))
+        
+        # Join
+        device_data <- device_data %>%
+          left_join(questionnaire_data_temp, by = "PID")
+        
+        cat("After joining, rows:", nrow(device_data), "\n")
+        cat("Age column exists after join:", "Age" %in% names(device_data), "\n")
+        
+        # Check if we have Age values
+        if ("Age" %in% names(device_data) && sum(!is.na(device_data$Age)) > 5) {
+          # Convert Age to numeric
+          device_data$Age <- as.numeric(as.character(device_data$Age))
+          
+          # Now try analysis again
+          # Correlation test
+          cor_test <- cor.test(device_data$Age, device_data$Accuracy, use = "complete.obs")
+          cat("\nCorrelation between age and accuracy:\n")
+          cat("r =", round(cor_test$estimate, 3), ", p =", round(cor_test$p.value, 3), "\n")
+          
+          # Linear model
+          device_model <- lm(Accuracy ~ Age, data = device_data)
+          cat("\nLinear model for this device:\n")
+          print(summary(device_model))
+          
+          # Plot
+          p <- ggplot(device_data, aes(x = Age, y = Accuracy)) +
+            geom_point() +
+            geom_smooth(method = "lm") +
+            labs(title = paste("Age vs Localization Accuracy -", device),
+                 x = "Age (years)", 
+                 y = "Accuracy") +
+            theme_minimal()
+          print(p)
+        } else {
+          cat("Still insufficient Age data after join\n")
+        }
+      } else {
+        cat("Missing required columns for join\n")
+      }
+    }
   } else {
     cat("Insufficient data for analysis\n")
   }
@@ -2539,7 +2869,7 @@ questionnaire_data$PID <- as.character(questionnaire_data$PID)
 
 # Now perform the join with matching types
 tp_with_age <- tp_summary %>%
-  inner_join(questionnaire_data %>% select(PID, Q1), by = "PID")
+  inner_join(questionnaire_data %>% select(PID, Age), by = "PID")
 
 # Device-specific models for two-point data
 for (device in unique(tp_with_age$device_type)) {
@@ -2553,18 +2883,25 @@ for (device in unique(tp_with_age$device_type)) {
     cat("Summary statistics for this device:\n")
     print(summary(device_data$Accuracy))
     
+    device_data$Accuracy <- as.numeric(device_data$Accuracy)
+
+    
+    device_data$Age <- as.numeric(as.character(device_data$Age))
+
+
+    
     # Correlation test
-    cor_test <- cor.test(device_data$Q1, device_data$Accuracy)
+    cor_test <- cor.test(device_data$Age, device_data$Accuracy)
     cat("\nCorrelation between age and accuracy:\n")
     cat("r =", round(cor_test$estimate, 3), ", p =", round(cor_test$p.value, 3), "\n")
     
     # Linear model
-    device_model <- lm(Accuracy ~ Q1, data = device_data)
+    device_model <- lm(Accuracy ~ Age, data = device_data)
     cat("\nLinear model for this device:\n")
     print(summary(device_model))
     
     # Plot
-    p <- ggplot(device_data, aes(x = Q1, y = Accuracy)) +
+    p <- ggplot(device_data, aes(x = Age, y = Accuracy)) +
       geom_point() +
       geom_smooth(method = "lm") +
       labs(title = paste("Age vs Two-Point Discrimination Accuracy -", device),
@@ -2595,48 +2932,106 @@ age_effects <- data.frame(
 # Collect threshold effects
 for (device in unique(threshold_with_age$device_type)) {
   device_data <- threshold_with_age %>% filter(device_type == device)
+  
+  # Convert Age to numeric
+  device_data$Age <- as.numeric(as.character(device_data$Age))
+  
   if (nrow(device_data) > 5) {
-    model <- lm(Threshold ~ Q1, data = device_data)
+    model <- lm(Threshold ~ Age, data = device_data)
+    
+    # Extract coefficient information - use safe indexing
+    coef_df <- as.data.frame(summary(model)$coefficients)
+    
+    # Add to age_effects dataframe
     age_effects <- rbind(age_effects, data.frame(
       Device = device,
       Measure = "Absolute Threshold",
-      Estimate = coef(model)["Q1"],
-      SE = summary(model)$coefficients["Q1", "Std. Error"],
-      p_value = summary(model)$coefficients["Q1", "Pr(>|t|)"]
+      Estimate = coef_df["Age", "Estimate"],
+      SE = coef_df["Age", "Std. Error"],
+      p_value = coef_df["Age", "Pr(>|t|)"]
     ))
   }
 }
-
 # Collect localization effects
 for (device in unique(loc_long$device_type)) {
-  device_data <- loc_long %>% filter(device_type == device)
+  # First merge with questionnaire data to get Age
+  device_data <- loc_long %>% 
+    filter(device_type == device) %>%
+    # Convert PID to character for joining
+    mutate(PID = as.character(PID)) %>%
+    # Join with questionnaire data to get Age
+    inner_join(questionnaire_data %>% 
+                 select(PID, Age) %>% 
+                 mutate(PID = as.character(PID)), 
+               by = "PID")
+  
+  cat("\n--- Localization data for device:", device, "---\n")
+  cat("Rows after merging with questionnaire data:", nrow(device_data), "\n")
+  cat("Columns in merged data:", paste(names(device_data), collapse=", "), "\n")
+  
   if (nrow(device_data) > 5) {
-    model <- lm(Accuracy ~ Q1, data = device_data)
-    age_effects <- rbind(age_effects, data.frame(
-      Device = device,
-      Measure = "Localization Accuracy",
-      Estimate = coef(model)["Q1"],
-      SE = summary(model)$coefficients["Q1", "Std. Error"],
-      p_value = summary(model)$coefficients["Q1", "Pr(>|t|)"]
-    ))
+    # Convert Age to numeric
+    device_data$Age <- as.numeric(as.character(device_data$Age))
+    device_data$Accuracy <- as.numeric(device_data$Accuracy)
+    
+    # Remove NA values
+    device_data <- device_data %>% filter(!is.na(Age), !is.na(Accuracy))
+    cat("Rows after removing NA values:", nrow(device_data), "\n")
+    
+    if (nrow(device_data) > 5) {
+      # Fit model
+      model <- try(lm(Accuracy ~ Age, data = device_data), silent = TRUE)
+      
+      if (!inherits(model, "try-error")) {
+        # Get coefficient table
+        coef_table <- summary(model)$coefficients
+        
+        # Add to age_effects using position indexing
+        age_effects <- rbind(age_effects, data.frame(
+          Device = device,
+          Measure = "Localization Accuracy",
+          Estimate = coef_table[2, 1],  # Age coefficient estimate
+          SE = coef_table[2, 2],        # Standard error
+          p_value = coef_table[2, 4]    # p-value
+        ))
+        cat("Successfully added", device, "to age_effects\n")
+      } else {
+        cat("Error fitting model for device", device, "\n")
+      }
+    } else {
+      cat("Insufficient data after removing NAs\n")
+    }
+  } else {
+    cat("Insufficient data for analysis\n")
   }
 }
 
 # Collect two-point effects
 for (device in unique(tp_with_age$device_type)) {
-  device_data <- tp_with_age %>% filter(device_type == device)
+  device_data <- tp_with_age %>% 
+    filter(device_type == device) %>%
+    # Convert Age to numeric
+    mutate(Age = as.numeric(as.character(Age))) %>%
+    # Remove rows with NA
+    filter(!is.na(Age), !is.na(Accuracy))
+  
   if (nrow(device_data) > 5) {
-    model <- lm(Accuracy ~ Q1, data = device_data)
+    # Fit model
+    model <- lm(Accuracy ~ Age, data = device_data)
+    
+    # Get coefficient table
+    coef_table <- summary(model)$coefficients
+    
+    # Use position indexing instead of name indexing for reliability
     age_effects <- rbind(age_effects, data.frame(
       Device = device,
       Measure = "Two-Point Accuracy",
-      Estimate = coef(model)["Q1"],
-      SE = summary(model)$coefficients["Q1", "Std. Error"],
-      p_value = summary(model)$coefficients["Q1", "Pr(>|t|)"]
+      Estimate = coef_table[2, 1],  # Age coefficient estimate (2nd row, 1st column)
+      SE = coef_table[2, 2],        # Standard error (2nd row, 2nd column)
+      p_value = coef_table[2, 4]    # p-value (2nd row, 4th column)
     ))
   }
 }
-
 # Create meaningful labels for the plot
 age_effects$Significance <- ifelse(age_effects$p_value < 0.05, "Significant", "Non-significant")
 age_effects$Label <- paste(age_effects$Device, "-", age_effects$Measure)
@@ -2645,7 +3040,7 @@ age_effects$Label <- factor(age_effects$Label, levels = age_effects$Label[order(
 # Create forest plot of all device-specific effects
 if (nrow(age_effects) > 0) {
   # Use device-specific colors
-  device_colors <- c("bracelet" = "#E69F00", "necklace" = "#56B4E9", "overear" = "#009E73")
+  device_colors <- c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")
   
   p <- ggplot(age_effects, aes(x = Label, y = Estimate, color = Device, shape = Significance)) +
     geom_point(size = 3) +
@@ -2679,9 +3074,10 @@ print(age_effects)
 #-----------------------------------------------------------------
 cat("\n\n=== INVESTIGATING AGE AS A CONFOUNDING VARIABLE ===\n")
 
+questionnaire_data$Age <- as.numeric(as.character(questionnaire_data$Age))
 # Check correlations between age and anatomical measurements
-age_neck_cor <- cor.test(questionnaire_data$Q1, questionnaire_data$Q55, use = "pairwise.complete.obs")
-age_wrist_cor <- cor.test(questionnaire_data$Q1, questionnaire_data$Q58, use = "pairwise.complete.obs")
+age_neck_cor <- cor.test(questionnaire_data$Age, questionnaire_data$Q55, use = "pairwise.complete.obs")
+age_wrist_cor <- cor.test(questionnaire_data$Age, questionnaire_data$Q58, use = "pairwise.complete.obs")
 
 cat("\nCorrelation between age and neck size:\n")
 cat("r =", round(age_neck_cor$estimate, 3), ", p =", round(age_neck_cor$p.value, 3), "\n")
@@ -2690,7 +3086,7 @@ cat("\nCorrelation between age and wrist size:\n")
 cat("r =", round(age_wrist_cor$estimate, 3), ", p =", round(age_wrist_cor$p.value, 3), "\n")
 
 # Scatter plots to visualize these relationships
-p1 <- ggplot(questionnaire_data, aes(x = Q1, y = Q55)) +
+p1 <- ggplot(questionnaire_data, aes(x = Age, y = Q55)) +
   geom_point() +
   geom_smooth(method = "lm") +
   labs(title = "Relationship Between Age and Neck Size",
@@ -2698,7 +3094,7 @@ p1 <- ggplot(questionnaire_data, aes(x = Q1, y = Q55)) +
        y = "Neck Circumference (cm)") +
   theme_minimal()
 
-p2 <- ggplot(questionnaire_data, aes(x = Q1, y = Q58)) +
+p2 <- ggplot(questionnaire_data, aes(x = Age, y = Q58)) +
   geom_point() +
   geom_smooth(method = "lm") +
   labs(title = "Relationship Between Age and Wrist Size",
@@ -2719,13 +3115,13 @@ for (device in unique(threshold_results_filtered$device_type)) {
   # First with neck size
   device_data_neck <- threshold_results_filtered %>% 
     filter(device_type == device) %>%
-    inner_join(questionnaire_data %>% select(PID, Q1, Q55), by = "PID")
+    inner_join(questionnaire_data %>% select(PID, Age, Q55), by = "PID")
   
   # Then with wrist size if it's a bracelet
   if (device == "bracelet") {
     device_data_wrist <- threshold_results_filtered %>% 
       filter(device_type == device) %>%
-      inner_join(questionnaire_data %>% select(PID, Q1, Q58), by = "PID")
+      inner_join(questionnaire_data %>% select(PID, Age, Q58), by = "PID")
   }
   
   cat("\n--- Multiple regression for", device, "device ---\n")
@@ -2733,7 +3129,7 @@ for (device in unique(threshold_results_filtered$device_type)) {
   # Neck size + age
   if (nrow(device_data_neck) > 5) {
     cat("\nModel with age and neck size:\n")
-    model_neck <- lm(Threshold ~ Q1 + Q55, data = device_data_neck)
+    model_neck <- lm(Threshold ~ Age + Q55, data = device_data_neck)
     print(summary(model_neck))
     
     # Calculate semi-partial correlations to assess unique contributions
@@ -2744,7 +3140,7 @@ for (device in unique(threshold_results_filtered$device_type)) {
   # Wrist size + age (only for bracelet)
   if (device == "bracelet" && nrow(device_data_wrist) > 5) {
     cat("\nModel with age and wrist size:\n")
-    model_wrist <- lm(Threshold ~ Q1 + Q58, data = device_data_wrist)
+    model_wrist <- lm(Threshold ~ Age + Q58, data = device_data_wrist)
     print(summary(model_wrist))
     
     # Calculate semi-partial correlations
