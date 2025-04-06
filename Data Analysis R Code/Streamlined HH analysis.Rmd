@@ -1,5 +1,5 @@
 ---
-title: "Streamlined Haptic Hearing Analysis\"
+title: "Streamlined Haptic Hearing Analysis"
 author: "Emmie Fitz-Gibbon"
 date: "2025-04-05"
 output: html_document

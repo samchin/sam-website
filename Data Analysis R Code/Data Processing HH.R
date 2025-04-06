@@ -535,6 +535,7 @@ questionnaire_data$PID <- as.numeric(questionnaire_data$PID)
 # Rename columns for clarity
 
 questionnaire_data$Neck_Circumference <- questionnaire_data$Q55
+questionnaire_data$Age <- questionnaire_data$Q1
 questionnaire_data$Wrist_Circumference <- questionnaire_data$Q58
 questionnaire_data$Gender <- as.factor(questionnaire_data$Q59)
 questionnaire_data$Hearing_Loss <-  as.factor(questionnaire_data$Q16)
