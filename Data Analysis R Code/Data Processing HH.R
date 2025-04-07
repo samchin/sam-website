@@ -164,7 +164,7 @@ find_csv_files <- function(folder_path, pattern) {
 
 # Create empty lists for each data type
 localization_data <- list()
-two_point_data <- list()
+relative_localization_data <- list()
 absolute_data <- list()
 
 # Loop through each participant folder and extract data
@@ -250,9 +250,9 @@ for (pid_folder in participant_folders) {
     })
   }
   
-  # Find and process two-point discrimination data
+  # Find and process relative_localization discrimination data
   tp_files <- find_csv_files(pid_folder, "two[ _\\-]point|twopoint")
-  cat("  Found", length(tp_files), "two-point discrimination files\n")
+  cat("  Found", length(tp_files), "relative_localization discrimination files\n")
     
   for (file in tp_files) {
     metadata <- extract_metadata(file)
@@ -282,7 +282,7 @@ for (pid_folder in participant_folders) {
       data$device_type <- device_type
         
       # Add to the appropriate list
-      two_point_data[[length(two_point_data) + 1]] <- data
+      relative_localization_data[[length(relative_localization_data) + 1]] <- data
       
     }, error = function(e) {
       cat("    Error loading file:", file, "Error:", e$message, "\n")
@@ -296,7 +296,7 @@ for (pid_folder in participant_folders) {
         data$device_type <- device_type
         
         # Add to the appropriate list
-        two_point_data[[length(two_point_data) + 1]] <- data
+        relative_localization_data[[length(relative_localization_data) + 1]] <- data
         
         cat("    Successfully loaded with alternative method\n")
       }, error = function(e2) {
@@ -399,25 +399,25 @@ localization_combined <- localization_combined %>%
     correct = as.logical(Correct)
   )
 
-if (length(two_point_data) > 0) {
-  two_point_combined <- bind_rows(two_point_data)
+if (length(relative_localization_data) > 0) {
+  relative_localization_combined <- bind_rows(relative_localization_data)
   
   # Clean up Device_Type column
-  two_point_combined$device_type <- tolower(two_point_combined$device_type)
-  two_point_combined$device_type <- ifelse(
-    !two_point_combined$device_type %in% c("bracelet", "necklace", "overear"),
+  relative_localization_combined$device_type <- tolower(relative_localization_combined$device_type)
+  relative_localization_combined$device_type <- ifelse(
+    !relative_localization_combined$device_type %in% c("bracelet", "necklace", "overear"),
     NA,
-    two_point_combined$device_type
+    relative_localization_combined$device_type
   )
   
-  cat("Total two-point discrimination data entries:", nrow(two_point_combined), "\n")
+  cat("Total relative_localization discrimination data entries:", nrow(relative_localization_combined), "\n")
 } else {
-  two_point_combined <- NULL
-  cat("No two-point discrimination data found.\n")
+  relative_localization_combined <- NULL
+  cat("No relative_localization discrimination data found.\n")
 }
 
 
-two_point_combined <- two_point_combined %>%
+relative_localization_combined <- relative_localization_combined %>%
   select(-DeviceType) %>%
   mutate(
     Trial = as.numeric(Trial),

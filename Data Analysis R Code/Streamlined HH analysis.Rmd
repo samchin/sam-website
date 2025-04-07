@@ -1722,6 +1722,83 @@ print(loc_results)
 print(loc_aov)
 
 summary(loc_wide_complete)
+
+
+
+
+
+```
+
+# Localization Accuracy Statistical Analysis
+## Localization between motors  
+```{r localization_motor_stats, echo = FALSE, warning = FALSE, message = FALSE}
+library(dplyr)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+
+# Prepare data
+localization_for_motor <- localization_combined %>%
+  mutate(
+    Motor = factor(Motor),
+    PID = factor(PID)
+  )
+
+    library("emmeans")
+
+# Loop through each device type
+for (device in unique(localization_for_motor$device_type)) {
+  device_data <- localization_for_motor %>%
+    filter(device_type == device)
+
+  cat("\n\n=== Motor position effects for", device, "===\n")
+
+  if (nrow(device_data) > 0) {
+    
+    
+    mixed_lm_model <- lme4 :: glmer(Correct ~ device_type + Motor +  (1 | PID), data = device_data, family = binomial(link = 
+                                                                                              "logit"))
+    print(summary(mixed_lm_model)
+
+    EMM <- emmeans(mixed_lm_model, ~ device_type + Motor)
+
+contrast(EMM, "pairwise", adjust = "bonferroni")
+    # ANOVA and mixed model
+    aov_model <- aov(Correct ~ Motor + Error(PID/Motor), data = device_data)
+    print(summary(aov_model))
+
+    # Pairwise comparisons
+    cat("\nPairwise comparisons between motor positions:\n")
+    pairwise_result <- pairwise.t.test(
+      device_data$Correct,
+      device_data$Motor,
+      p.adjust.method = "bonferroni"
+    )
+    print(pairwise_result)
+
+    # === Participant-level accuracy per Motor ===
+    participant_motor_accuracy <- device_data %>%
+      group_by(PID, Motor) %>%
+      summarize(
+        Accuracy = mean(Correct, na.rm = TRUE),
+        .groups = "drop"
+      )
+
+    # Plot histogram of individual participant accuracies per Motor
+    print(
+      ggplot(participant_motor_accuracy, aes(x = Accuracy)) +
+        geom_histogram(bins = 10, color = "black", fill = "gray") +
+        facet_wrap(~ Motor, scales = "free_y") +
+        ggtitle(paste("Participant Accuracy by Motor for", device)) +
+        xlab("Participant-level Accuracy") +
+        ylab("Number of Participants")
+    )
+  } else {
+    cat("Not enough data for analysis")
+  }
+}
+
+
 ```
 
 ##Localization between motors 
@@ -1746,8 +1823,12 @@ for (device in unique(localization_for_motor$device_type)) {
   if (nrow(device_data) > 0) {
     # ANOVA to test effect of motor position on accuracy
     aov_model <- aov(Correct ~ Motor + Error(PID/Motor), data = device_data)
-    print(summary(aov_model))
+    mixed_lm_model <- lmer(Correct ~ Motor + (Motor | PID), data = device_data)
+
     
+
+    print(summary(aov_model))
+
     # Calculate and print accuracy by motor position
     motor_accuracy <- device_data %>%
       group_by(Motor) %>%
@@ -1759,6 +1840,9 @@ for (device in unique(localization_for_motor$device_type)) {
     
     cat("\nAccuracy by motor position:\n")
     print(motor_accuracy)
+  
+      # Separate histograms by group using facets
+  
     
     # Pairwise comparisons if overall test is significant
     cat("\nPairwise comparisons between motor positions:\n")
@@ -1772,6 +1856,16 @@ for (device in unique(localization_for_motor$device_type)) {
     cat("Not enough data for analysis")
   }
 }
+
+     print(summary(mixed_lm_model))
+     
+    ggplot(motor_accuracy, aes(x = motor_accuracy$Accuracy)) +
+    geom_histogram(bins = 30) +
+    facet_wrap(~ device_type + motor_accuracy$Motor)
+     
+     
+
+
 ```
 
 ## Two point accuracy 
