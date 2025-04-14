@@ -413,7 +413,7 @@ if (length(relative_localization_data) > 0) {
   cat("Total relative_localization discrimination data entries:", nrow(relative_localization_combined), "\n")
 } else {
   relative_localization_combined <- NULL
-  cat("No relative_localization discrimination data found.\n")
+  cat("No relative_localization  data found.\n")
 }
 
 

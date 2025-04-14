@@ -844,21 +844,21 @@ ggplot(accuracy_by_participant, aes(x = factor(PID), y = Accuracy, fill = device
 ```
 
 
-## Two-Point Discrimination Analysis
+## Relative Localization    Analysis
 
-```{r two_point_analysis, echo = FALSE, warning = FALSE, message = FALSE}
-if (!is.null(two_point_combined)) {
+```{r relative_localization_analysis, echo = FALSE, warning = FALSE, message = FALSE}
+if (!is.null(relative_localization_combined)) {
   # Ensure data types are correct
-  two_point_combined$FirstMotor <- as.numeric(two_point_combined$FirstMotor)
-  two_point_combined$SecondMotor <- as.numeric(two_point_combined$SecondMotor)
-  two_point_combined$Correct <- as.numeric(two_point_combined$Correct)
+  relative_localization_combined$FirstMotor <- as.numeric(relative_localization_combined$FirstMotor)
+  relative_localization_combined$SecondMotor <- as.numeric(relative_localization_combined$SecondMotor)
+  relative_localization_combined$Correct <- as.numeric(relative_localization_combined$Correct)
   
   # Overall accuracy
-  overall_accuracy <- mean(two_point_combined$Correct, na.rm = TRUE)
-  cat("Overall two-point discrimination accuracy:", round(overall_accuracy * 100, 2), "%\n")
+  overall_accuracy <- mean(relative_localization_combined$Correct, na.rm = TRUE)
+  cat("Overall Relative Localization Accuracy:", round(overall_accuracy * 100, 2), "%\n")
   
   # Accuracy by device type
-  accuracy_by_device <- two_point_combined %>%
+  accuracy_by_device <- relative_localization_combined %>%
     filter(device_type %in% c("bracelet", "necklace", "overear")) %>%
     group_by(device_type) %>%
     summarise(
@@ -867,7 +867,7 @@ if (!is.null(two_point_combined)) {
       n = n()
     )
   
-  cat("\nTwo-point discrimination accuracy by device type:\n")
+  cat("\nRelative Localization  accuracy by device type:\n")
   print(accuracy_by_device)
   
   # Plot accuracy by device type
@@ -877,7 +877,7 @@ if (!is.null(two_point_combined)) {
     scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
     scale_fill_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")) +
     labs(
-      title = "Two-Point Discrimination Accuracy by Device Type",
+      title = "Relative Localization Accuracy by Device Type",
       x = "Device Type",
       y = "Average Accuracy"
     ) +
@@ -892,7 +892,7 @@ if (!is.null(two_point_combined)) {
     geom_bar(stat = "identity", position = "dodge") +
     scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
     labs(
-      title = "Two-Point Discrimination Accuracy by Participant",
+      title = "Relative Localization  Accuracy by Participant",
       x = "Participant ID",
       y = "Average Accuracy"
     ) +
@@ -907,7 +907,7 @@ if (!is.null(two_point_combined)) {
   
 
     # Accuracy by first motor position
-  accuracy_by_first_motor <- two_point_combined %>%
+  accuracy_by_first_motor <- relative_localization_combined %>%
     group_by(device_type, FirstMotor) %>%
     summarise(
       Accuracy = mean(Correct, na.rm = TRUE),
@@ -921,7 +921,7 @@ if (!is.null(two_point_combined)) {
     geom_errorbar(aes(ymin = Accuracy - SE, ymax = Accuracy + SE), width = 0.2) +
     scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
     labs(
-      title = "Two-Point Discrimination Accuracy by First Motor Position",
+      title = "Relative Localization  Accuracy by First Motor Position",
       x = "First Motor Position",
       y = "Average Accuracy"
     ) +
@@ -929,7 +929,7 @@ if (!is.null(two_point_combined)) {
     my_theme
   
   # Accuracy by participant
-  accuracy_by_participant <- two_point_combined %>%
+  accuracy_by_participant <- relative_localization_combined %>%
     group_by(PID, device_type) %>%
     summarise(
       Accuracy = mean(Correct, na.rm = TRUE),
@@ -938,10 +938,10 @@ if (!is.null(two_point_combined)) {
   
 
     # Calculate distance between motors
-  two_point_combined$Distance <- abs(two_point_combined$FirstMotor - two_point_combined$SecondMotor)
+  relative_localization_combined$Distance <- abs(relative_localization_combined$FirstMotor - relative_localization_combined$SecondMotor)
   
   # Accuracy by distance between motors
-  accuracy_by_distance <- two_point_combined %>%
+  accuracy_by_distance <- relative_localization_combined %>%
     group_by(device_type, Distance) %>%
     summarise(
       Accuracy = mean(Correct, na.rm = TRUE),
@@ -958,12 +958,13 @@ print(accuracy_by_distance)
   
 
 ```
-# two point and localization on the same graph 
-```{r two_point_and_localization, echo = FALSE, warning = FALSE, message = FALSE}
-# Combined plot of two-point discrimination and localization accuracy
+
+# Relative Localization  and localization on the same graph 
+```{r relative_localization_and_localization, echo = FALSE, warning = FALSE, message = FALSE}
+# Combined plot of Relative Localization  and localization accuracy
 # First, prepare the data frames with a new column to distinguish the data source
-# Add data source column to two-point data
-accuracy_by_first_motor$data_source <- "Two-Point Discrimination"
+# Add data source column to Relative Localization  data
+accuracy_by_first_motor$data_source <- "Relative Localization"
 # Add data source column to localization data
 accuracy_by_motor$data_source <- "Localization"
 # Rename columns to match (if needed)
@@ -1005,12 +1006,12 @@ ggplot() +
   geom_hline(data = avg_by_type %>% filter(data_source == "Localization"),
              aes(yintercept = avg_accuracy, color = device_type),
              linetype = "solid") +
-  # Add average lines - dashed for two-point
-  geom_hline(data = avg_by_type %>% filter(data_source == "Two-Point Discrimination"),
+  # Add average lines - dashed for Relative Localization 
+  geom_hline(data = avg_by_type %>% filter(data_source == "Relative Localization"),
              aes(yintercept = avg_accuracy, color = device_type),
              linetype = "dashed") +
-  # Use open circles for Two-Point Discrimination
-  scale_shape_manual(values = c("Two-Point Discrimination" = 1, "Localization" = 16)) +
+  # Use open circles for Relative Localization  
+  scale_shape_manual(values = c("Relative Localization" = 1, "Localization" = 16)) +
   # Customize colors for device types
   scale_color_manual(values = c("bracelet" = "#FA8072", "necklace" = "#66BB6A", "overear" = "#5C9CFA")) +
   # Format y-axis as percentage
@@ -1018,7 +1019,7 @@ ggplot() +
   # Labels
   labs(
     title = "Accuracy by Motor Position",
-    subtitle = "Comparing Two-Point Discrimination and Localization Accuracy",
+    subtitle = "Comparing Relative Localization and Localization Accuracy",
     x = "Motor Position",
     y = "Average Accuracy",
     color = "Device Type",
@@ -1026,7 +1027,6 @@ ggplot() +
   ) +
   # Facet by device type
   facet_wrap(~ device_type) +
-  # Apply your custom theme
   my_theme +
   # Additional theme customizations
   theme(
@@ -1756,14 +1756,18 @@ for (device in unique(localization_for_motor$device_type)) {
   if (nrow(device_data) > 0) {
     
     
-    mixed_lm_model <- lme4 :: glmer(Correct ~ device_type + Motor +  (1 | PID), data = device_data, family = binomial(link = 
-                                                                                              "logit"))
-    print(summary(mixed_lm_model)
+    # mixed_lm_model <- lme4 :: glmer(Correct ~ Motor +  (1 | PID), data = device_data, family = binomial(link = 
+    #                                                                                           "logit"))
+    mixed_lm_model <- lme4 :: glmer(Correct ~ Motor +  (1 | PID), 
+                                    data = device_data, family = binomial(link ="logit"))
+    print(summary(mixed_lm_model))
 
-    EMM <- emmeans(mixed_lm_model, ~ device_type + Motor)
+    EMM <- emmeans(mixed_lm_model, ~ Motor)
 
-contrast(EMM, "pairwise", adjust = "bonferroni")
-    # ANOVA and mixed model
+    print(contrast(EMM, "pairwise", adjust = "bonferroni"))
+  
+    
+     # ANOVA and mixed model
     aov_model <- aov(Correct ~ Motor + Error(PID/Motor), data = device_data)
     print(summary(aov_model))
 
@@ -1858,26 +1862,39 @@ for (device in unique(localization_for_motor$device_type)) {
 }
 
      print(summary(mixed_lm_model))
-     
-    ggplot(motor_accuracy, aes(x = motor_accuracy$Accuracy)) +
-    geom_histogram(bins = 30) +
-    facet_wrap(~ device_type + motor_accuracy$Motor)
+
      
      
 
 
 ```
 
-## Two point accuracy 
-```{r two_point_accuracy_stats, echo = FALSE, warning = FALSE, message = FALSE}
+## Relative Localization  accuracy 
+```{r relative_localization_accuracy_stats, echo = FALSE, warning = FALSE, message = FALSE}
 # Create participant-level summary data
-tp_summary <- two_point_combined %>%
+rlsummary <- relative_localization_combined %>%
   group_by(PID, device_type) %>%
   summarise(Accuracy = mean(Correct, na.rm = TRUE)) %>%
   ungroup()
 
-# Convert to wide format
-tp_wide <- tp_summary %>%
+# Make sure device_type is a factor
+rlsummary$device_type <- factor(rlsummary$device_type)
+
+# Use a proper repeated measures ANOVA with correct error term
+# Option 1: Using aov with a simpler error structure
+rlaov <- aov(Accuracy ~ device_type + Error(PID), data = rlsummary)
+summary(rlaov)
+
+# Option 2: Using lme4 package for mixed-effects model (more robust)
+library(lme4)
+library(lmerTest) # For p-values
+rlmixed <- lmer(Accuracy ~ device_type + (1|PID), data = rlsummary)
+anova(rlmixed)
+summary(rlmixed)
+
+# For post-hoc comparisons, first ensure you have complete data for all comparisons
+# Create a wide format dataset for paired comparisons
+rlwide <- rlsummary %>%
   pivot_wider(
     id_cols = PID,
     names_from = device_type,
@@ -1885,66 +1902,56 @@ tp_wide <- tp_summary %>%
   )
 
 # Remove rows with missing values
-tp_wide_complete <- na.omit(tp_wide)
-
-# Test for normality
-shapiro.test(tp_wide_complete$bracelet - tp_wide_complete$necklace)
-shapiro.test(tp_wide_complete$bracelet - tp_wide_complete$overear)
-shapiro.test(tp_wide_complete$necklace - tp_wide_complete$overear)
-
-# Reshape for repeated measures
-tp_long <- reshape(
-  tp_wide_complete,
-  idvar = "PID",
-  varying = c("bracelet", "necklace", "overear"),
-  v.names = "Accuracy",
-  timevar = "device_type",
-  times = c("bracelet", "necklace", "overear"),
-  direction = "long"
-)
-
-# Repeated measures ANOVA
-tp_aov <- aov(Accuracy ~ device_type + Error(PID/device_type), data = tp_long)
-summary(tp_aov)
+rlwide_complete <- na.omit(rlwide)
 
 # Paired t-tests for post-hoc comparisons
-tp_bn <- t.test(tp_wide_complete$bracelet, tp_wide_complete$necklace, paired = TRUE)
-tp_bo <- t.test(tp_wide_complete$bracelet, tp_wide_complete$overear, paired = TRUE)
-tp_no <- t.test(tp_wide_complete$necklace, tp_wide_complete$overear, paired = TRUE)
+rlbn <- t.test(rlwide_complete$bracelet, rlwide_complete$necklace, paired = TRUE)
+rlbo <- t.test(rlwide_complete$bracelet, rlwide_complete$overear, paired = TRUE)
+rlno <- t.test(rlwide_complete$necklace, rlwide_complete$overear, paired = TRUE)
+
+# Print each t-test result with clear labels
+cat("\nPaired t-test results:\n")
+cat("\nBracelet vs Necklace:\n")
+print(rlbn)
+
+cat("\nBracelet vs Overear:\n")
+print(rlbo)
+
+cat("\nNecklace vs Overear:\n")
+print(rlno)
 
 # Apply Bonferroni correction
-tp_p_values <- c(tp_bn$p.value, tp_bo$p.value, tp_no$p.value)
-tp_p_adjusted <- p.adjust(tp_p_values, method = "bonferroni")
+rlp_values <- c(rlbn$p.value, rlbo$p.value, rlno$p.value)
+rlp_adjusted <- p.adjust(rlp_values, method = "bonferroni")
 
-# Print results
-tp_results <- data.frame(
+# Print adjusted p-values with clear labels
+cat("\nAdjusted p-values (Bonferroni):\n")
+rlresults <- data.frame(
   Comparison = c("Bracelet vs Necklace", "Bracelet vs Overear", "Necklace vs Overear"),
-  t_value = c(tp_bn$statistic, tp_bo$statistic, tp_no$statistic),
-  p_value = tp_p_values,
-  p_adjusted = tp_p_adjusted
+  t_value = c(rlbn$statistic, rlbo$statistic, rlno$statistic),
+  p_value = rlp_values,
+  p_adjusted = rlp_adjusted
 )
-print(tp_results)
-
-
+print(rlresults)
 ```
 
 
-## Two point between motors 
+## Relative Localization  between motors 
 
-```{r two_point_motor_stats, echo = FALSE, warning = FALSE, message = FALSE}
-  # For two-point discrimination, we want to analyze the effect of
+```{r relative_localization_motor_stats, echo=FALSE, message=FALSE, warning=FALSE}
+  # For Relative Localization   , we want to analyze the effect of
 # motor distance and possibly start position
 
 # First approach: Effect of distance on accuracy
-tp_distance_data <- two_point_combined %>%
+rldistance_data <- relative_localization_combined %>%
   mutate(
     Distance = factor(abs(FirstMotor - SecondMotor)),
     PID = factor(PID)
   )
 
 # Analyze by device type
-for (device in unique(tp_distance_data$device_type)) {
-  device_data <- tp_distance_data %>% 
+for (device in unique(rldistance_data$device_type)) {
+  device_data <- rldistance_data %>% 
     filter(device_type == device)
   
   cat("\n\n=== Effect of motor distance for", device, "===\n")
@@ -1983,7 +1990,7 @@ for (device in unique(tp_distance_data$device_type)) {
   # Second approach: Effect of first motor position on accuracy
   cat("\n\n=== Effect of first motor position for", device, "===\n")
   
-  device_data <- two_point_combined %>%
+  device_data <- relative_localization_combined %>%
     filter(device_type == device) %>%
     mutate(
       FirstMotor = factor(FirstMotor),
@@ -2121,10 +2128,10 @@ questionnaire_data$PID = as.numeric(questionnaire_data$PID)
 
 # Based on column names, choose the appropriate approach:
 # Option 1: If data is already in long format
-if ("device_type" %in% names(tp_summary)) {
+if ("device_type" %in% names(rlsummary)) {
   # Convert PID to numeric for joining 
   # CORRECTED: Use as.numeric instead of numeric()
-  tp_with_neck <- tp_summary %>%
+  rlwith_neck <- rlsummary %>%
     mutate(PID = as.numeric(as.character(PID))) %>%
     inner_join(questionnaire_data %>% select(PID, Q55), by = "PID")
   
@@ -2134,11 +2141,11 @@ if ("device_type" %in% names(tp_summary)) {
   # Find which device columns exist
   possible_device_cols <- c("bracelet", "necklace", "overear",
                             "Bracelet", "Necklace", "Overear")
-  device_cols <- intersect(names(tp_summary), possible_device_cols)
+  device_cols <- intersect(names(rlsummary), possible_device_cols)
   
   if (length(device_cols) > 0) {
     # Convert to long format
-    tp_with_neck <- tp_summary %>%
+    rlwith_neck <- rlsummary %>%
       # CORRECTED: Use as.numeric with as.character
       mutate(PID = as.numeric(as.character(PID))) %>%
       inner_join(questionnaire_data %>% select(PID, Q55), by = "PID") %>%
@@ -2150,12 +2157,12 @@ if ("device_type" %in% names(tp_summary)) {
       filter(!is.na(Accuracy))
     
     # Ensure device_type is lowercase
-    tp_with_neck$device_type <- tolower(tp_with_neck$device_type)
+    rlwith_neck$device_type <- tolower(rlwith_neck$device_type)
   } else {
-    cat("Warning: Could not identify device columns in tp_summary\n")
-    print(names(tp_summary))
+    cat("Warning: Could not identify device columns in rlsummary\n")
+    print(names(rlsummary))
     # Create empty dataframe
-    tp_with_neck <- data.frame(
+    rlwith_neck <- data.frame(
       PID = numeric(),
       device_type = character(),
       Accuracy = numeric(),
@@ -2209,25 +2216,25 @@ for (device in unique(loc_long$device_type)) {
 }
 
 #-----------------------------------------------------------------
-# 3. TWO-POINT DISCRIMINATION ANALYSIS BY DEVICE
+# 3. Relative Localization    ANALYSIS BY DEVICE
 #-----------------------------------------------------------------
-cat("\n\n=== TWO-POINT DISCRIMINATION ANALYSIS BY DEVICE ===\n")
+cat("\n\n=== Relative Localization    ANALYSIS BY DEVICE ===\n")
 
-# Verify structure of two-point summary data
-cat("Structure of tp_summary:\n")
-str(tp_summary)
-cat("\nColumn names in tp_summary:\n")
-print(names(tp_summary))
+# Verify structure of Relative Localization  summary data
+cat("Structure of rlsummary:\n")
+str(rlsummary)
+cat("\nColumn names in rlsummary:\n")
+print(names(rlsummary))
 
 
-tp_summary$PID = as.numeric(tp_summary$PID)
+rlsummary$PID = as.numeric(rlsummary$PID)
 questionnaire_data$PID = as.numeric(questionnaire_data$PID)
 
 # Apply same logic as with localization data
 # Option 1: If data is already in long format
-if ("device_type" %in% names(tp_summary)) {
+if ("device_type" %in% names(rlsummary)) {
   # Convert PID to character for joining
-  tp_with_neck <- tp_summary %>%
+  rlwith_neck <- rlsummary %>%
     mutate(PID = as.numeric(as.character(PID))) %>%
     inner_join(questionnaire_data %>% select(PID, Q55), by = "PID")
   
@@ -2237,11 +2244,11 @@ if ("device_type" %in% names(tp_summary)) {
   # Find which device columns exist
   possible_device_cols <- c("bracelet", "necklace", "overear", 
                            "Bracelet", "Necklace", "Overear")
-  device_cols <- intersect(names(tp_summary), possible_device_cols)
+  device_cols <- intersect(names(rlsummary), possible_device_cols)
   
   if (length(device_cols) > 0) {
     # Convert to long format
-    tp_with_neck <- tp_summary %>%
+    rlwith_neck <- rlsummary %>%
       mutate(PID = as.numeric(as.character(PID))) %>%
       inner_join(questionnaire_data %>% select(PID, Q55), by = "PID") %>%
       pivot_longer(
@@ -2252,12 +2259,12 @@ if ("device_type" %in% names(tp_summary)) {
       filter(!is.na(Accuracy))
     
     # Ensure device_type is lowercase
-    tp_with_neck$device_type <- tolower(tp_with_neck$device_type)
+    rlwith_neck$device_type <- tolower(rlwith_neck$device_type)
   } else {
-    cat("Warning: Could not identify device columns in tp_summary\n")
-    print(names(tp_summary))
+    cat("Warning: Could not identify device columns in rlsummary\n")
+    print(names(rlsummary))
     # Create empty dataframe
-    tp_with_neck <- data.frame(
+    rlwith_neck <- data.frame(
       PID = numeric(),
       device_type = character(),
       Accuracy = numeric(),
@@ -2266,11 +2273,11 @@ if ("device_type" %in% names(tp_summary)) {
   }
 }
 
-# Device-specific models for two-point data
-for (device in unique(tp_with_neck$device_type)) {
-  device_data <- tp_with_neck %>% filter(device_type == device)
+# Device-specific models for Relative Localization  data
+for (device in unique(rlwith_neck$device_type)) {
+  device_data <- rlwith_neck %>% filter(device_type == device)
   
-  cat("\n--- Two-Point Discrimination: Device =", device, "---\n")
+  cat("\n--- Relative Localization   : Device =", device, "---\n")
   cat("Number of observations:", nrow(device_data), "\n")
   
   if (nrow(device_data) > 5) {
@@ -2292,7 +2299,7 @@ for (device in unique(tp_with_neck$device_type)) {
     p <- ggplot(device_data, aes(x = Q55, y = Accuracy)) +
       geom_point() +
       geom_smooth(method = "lm") +
-      labs(title = paste("Neck Size vs Two-Point Discrimination Accuracy -", device),
+      labs(title = paste("Neck Size vs Relative Localization    Accuracy -", device),
            x = "Neck Circumference (cm)", 
            y = "Accuracy") +
       theme_minimal()
@@ -2347,14 +2354,14 @@ for (device in unique(loc_long$device_type)) {
   }
 }
 
-# Collect two-point effects
-for (device in unique(tp_with_neck$device_type)) {
-  device_data <- tp_with_neck %>% filter(device_type == device)
+# Collect Relative Localization  effects
+for (device in unique(rlwith_neck$device_type)) {
+  device_data <- rlwith_neck %>% filter(device_type == device)
   if (nrow(device_data) > 5) {
     model <- lm(Accuracy ~ Q55, data = device_data)
     device_effects <- rbind(device_effects, data.frame(
       Device = device,
-      Measure = "Two-Point Accuracy",
+      Measure = "Relative Localization  Accuracy",
       Estimate = coef(model)["Q55"],
       SE = summary(model)$coefficients["Q55", "Std. Error"],
       p_value = summary(model)$coefficients["Q55", "Pr(>|t|)"]
@@ -2463,43 +2470,43 @@ if (nrow(bracelet_loc) > 5) {
   cat("Insufficient data for bracelet localization vs wrist size analysis\n")
 }
 
-# For two-point data - handle both potential data structures
-if ("device_type" %in% names(tp_summary)) {
+# For Relative Localization  data - handle both potential data structures
+if ("device_type" %in% names(rlsummary)) {
   # If already in long format
-  bracelet_tp <- tp_summary %>%
+  bracelet_tp <- rlsummary %>%
     filter(device_type == "bracelet") %>%
     inner_join(questionnaire_data %>% select(PID, Q58), by = "PID")
 } else {
   # If in wide format
-  if ("bracelet" %in% names(tp_summary) || "Bracelet" %in% names(tp_summary)) {
-    bracelet_col <- ifelse("bracelet" %in% names(tp_summary), "bracelet", "Bracelet")
-    bracelet_tp <- tp_summary %>%
+  if ("bracelet" %in% names(rlsummary) || "Bracelet" %in% names(rlsummary)) {
+    bracelet_col <- ifelse("bracelet" %in% names(rlsummary), "bracelet", "Bracelet")
+    bracelet_tp <- rlsummary %>%
       select(PID, !!sym(bracelet_col)) %>%
       rename(Accuracy = !!sym(bracelet_col)) %>%
       inner_join(questionnaire_data %>% select(PID, Q58), by = "PID") %>%
       filter(!is.na(Accuracy))
   } else {
     # Fallback
-    cat("Could not find bracelet data in two-point dataset\n")
+    cat("Could not find bracelet data in Relative Localization  dataset\n")
     bracelet_tp <- data.frame()
   }
 }
 
 if (nrow(bracelet_tp) > 5) {
-  cat("\n--- Bracelet Two-Point Discrimination vs Wrist Size ---\n")
-  wrist_tp_model <- lm(Accuracy ~ Q58, data = bracelet_tp)
-  print(summary(wrist_tp_model))
+  cat("\n--- Bracelet Relative Localization vs Wrist Size ---\n")
+  wrist_rlmodel <- lm(Accuracy ~ Q58, data = bracelet_tp)
+  print(summary(wrist_rlmodel))
   
   p <- ggplot(bracelet_tp, aes(x = Q58, y = Accuracy)) +
     geom_point() +
     geom_smooth(method = "lm") +
-    labs(title = "Wrist Size vs Two-Point Discrimination - Bracelet Device",
+    labs(title = "Wrist Size vs Relative Localization - Bracelet Device",
          x = "Wrist Circumference (cm)", 
          y = "Accuracy") +
     theme_minimal()
   print(p)
 } else {
-  cat("Insufficient data for bracelet two-point vs wrist size analysis\n")
+  cat("Insufficient data for bracelet Relative Localization  vs wrist size analysis\n")
 }
 
 #-----------------------------------------------------------------
@@ -2598,23 +2605,23 @@ if ("device_type" %in% names(loc_summary)) {
   }
 }
 
-# 3. Collect two-point effects for wrist size
+# 3. Collect Relative Localization  effects for wrist size
 # Similar approach as for localization
-if ("device_type" %in% names(tp_summary)) {
+if ("device_type" %in% names(rlsummary)) {
   # If already in long format
-  tp_wrist <- tp_summary %>%
+  rlwrist <- rlsummary %>%
     mutate(PID = as.numeric(as.character(PID))) %>%
     inner_join(questionnaire_data %>% select(PID, Q58), by = "PID")
   
   for (device in c("bracelet", "necklace", "overear")) {
-    device_data <- tp_wrist %>% filter(device_type == device)
+    device_data <- rlwrist %>% filter(device_type == device)
     
     if (nrow(device_data) > 5) {
       model <- lm(Accuracy ~ Q58, data = device_data)
       
       wrist_effects <- rbind(wrist_effects, data.frame(
         Device = device,
-        Measure = "Two-Point Accuracy",
+        Measure = "Relative Localization  Accuracy",
         Estimate = coef(model)["Q58"],
         SE = summary(model)$coefficients["Q58", "Std. Error"],
         p_value = summary(model)$coefficients["Q58", "Pr(>|t|)"]
@@ -2625,14 +2632,14 @@ if ("device_type" %in% names(tp_summary)) {
   # If in wide format
   possible_device_cols <- c("bracelet", "necklace", "overear", 
                           "Bracelet", "Necklace", "Overear")
-  available_devices <- intersect(names(tp_summary), possible_device_cols)
+  available_devices <- intersect(names(rlsummary), possible_device_cols)
   
   if (length(available_devices) > 0) {
     for (device_col in available_devices) {
       device_name <- tolower(device_col)
       
       # Create temporary dataset with just this device
-      device_data <- tp_summary %>%
+      device_data <- rlsummary %>%
         mutate(PID = as.numeric(as.character(PID))) %>%
         select(PID, !!sym(device_col)) %>%
         rename(Accuracy = !!sym(device_col)) %>%
@@ -2644,7 +2651,7 @@ if ("device_type" %in% names(tp_summary)) {
         
         wrist_effects <- rbind(wrist_effects, data.frame(
           Device = device_name,
-          Measure = "Two-Point Accuracy",
+          Measure = "Relative Localization  Accuracy",
           Estimate = coef(model)["Q58"],
           SE = summary(model)$coefficients["Q58", "Std. Error"],
           p_value = summary(model)$coefficients["Q58", "Pr(>|t|)"]
@@ -2788,23 +2795,23 @@ str(loc_summary)
 # Ensure PIDs are character type
 questionnaire_data$PID <- as.numeric(questionnaire_data$PID)
 
-tp_summary$PID <- as.numeric(tp_summary$PID)
+rlsummary$PID <- as.numeric(rlsummary$PID)
 
 # Merge localization data with questionnaire data
 # Check if data is already in long format with device_type column
-if ("device_type" %in% names(tp_summary)) {
+if ("device_type" %in% names(rlsummary)) {
   # Data is already in long format
-  tp_with_age <- tp_summary %>%
+  rlwith_age <- rlsummary %>%
     inner_join(questionnaire_data %>% select(PID, Age), by = "PID")
 } else {
   # Option 2: If data is in wide format
   possible_device_cols <- c("bracelet", "necklace", "overear",
                            "Bracelet", "Necklace", "Overear")
-  device_cols <- intersect(names(tp_summary), possible_device_cols)
+  device_cols <- intersect(names(rlsummary), possible_device_cols)
   
   if (length(device_cols) > 0) {
     # Convert to long format
-    tp_with_age <- tp_summary %>%
+    rlwith_age <- rlsummary %>%
       inner_join(questionnaire_data %>% select(PID, Age), by = "PID") %>%
       pivot_longer(
         cols = all_of(device_cols),
@@ -2814,12 +2821,12 @@ if ("device_type" %in% names(tp_summary)) {
       filter(!is.na(Accuracy))
     
     # Ensure device_type is lowercase
-    tp_with_age$device_type <- tolower(tp_with_age$device_type)
+    rlwith_age$device_type <- tolower(rlwith_age$device_type)
   } else {
-    cat("Warning: Could not identify device columns in tp_summary\n")
-    print(names(tp_summary))
+    cat("Warning: Could not identify device columns in rlsummary\n")
+    print(names(rlsummary))
     # Create empty dataframe
-    tp_with_age <- data.frame(
+    rlwith_age <- data.frame(
       PID = character(),
       device_type = character(),
       Accuracy = numeric(),
@@ -2942,15 +2949,15 @@ for (device in unique(loc_long$device_type)) {
 }
 
 #-----------------------------------------------------------------
-# 3. TWO-POINT DISCRIMINATION ANALYSIS BY DEVICE
+# 3. Relative Localization    ANALYSIS BY DEVICE
 #-----------------------------------------------------------------
-cat("\n\n=== AGE EFFECT ON TWO-POINT DISCRIMINATION BY DEVICE ===\n")
+cat("\n\n=== AGE EFFECT ON Relative Localization    BY DEVICE ===\n")
 
-# Verify structure of two-point summary data
-cat("Structure of tp_summary:\n")
-str(tp_summary)
-cat("\nColumn names in tp_summary:\n")
-print(names(tp_summary))
+# Verify structure of Relative Localization  summary data
+cat("Structure of rlsummary:\n")
+str(rlsummary)
+cat("\nColumn names in rlsummary:\n")
+print(names(rlsummary))
 
 # Apply same logic as with localization data
 threshold_results_filtered$PID <- as.character(threshold_results_filtered$PID)
@@ -2958,18 +2965,18 @@ threshold_results_filtered$PID <- as.character(threshold_results_filtered$PID)
 questionnaire_data$PID <- as.character(questionnaire_data$PID)
 
 # Convert both PIDs to the same type before joining
-tp_summary$PID <- as.character(tp_summary$PID)
+rlsummary$PID <- as.character(rlsummary$PID)
 questionnaire_data$PID <- as.character(questionnaire_data$PID)
 
 # Now perform the join with matching types
-tp_with_age <- tp_summary %>%
+rlwith_age <- rlsummary %>%
   inner_join(questionnaire_data %>% select(PID, Age), by = "PID")
 
-# Device-specific models for two-point data
-for (device in unique(tp_with_age$device_type)) {
-  device_data <- tp_with_age %>% filter(device_type == device)
+# Device-specific models for Relative Localization  data
+for (device in unique(rlwith_age$device_type)) {
+  device_data <- rlwith_age %>% filter(device_type == device)
   
-  cat("\n--- Two-Point Discrimination: Device =", device, "---\n")
+  cat("\n--- Relative Localization   : Device =", device, "---\n")
   cat("Number of observations:", nrow(device_data), "\n")
   
   if (nrow(device_data) > 5) {
@@ -2998,7 +3005,7 @@ for (device in unique(tp_with_age$device_type)) {
     p <- ggplot(device_data, aes(x = Age, y = Accuracy)) +
       geom_point() +
       geom_smooth(method = "lm") +
-      labs(title = paste("Age vs Two-Point Discrimination Accuracy -", device),
+      labs(title = paste("Age vs Relative Localization    Accuracy -", device),
            x = "Age (years)", 
            y = "Accuracy") +
       theme_minimal()
@@ -3100,9 +3107,9 @@ for (device in unique(loc_long$device_type)) {
   }
 }
 
-# Collect two-point effects
-for (device in unique(tp_with_age$device_type)) {
-  device_data <- tp_with_age %>% 
+# Collect Relative Localization  effects
+for (device in unique(rlwith_age$device_type)) {
+  device_data <- rlwith_age %>% 
     filter(device_type == device) %>%
     # Convert Age to numeric
     mutate(Age = as.numeric(as.character(Age))) %>%
@@ -3119,7 +3126,7 @@ for (device in unique(tp_with_age$device_type)) {
     # Use position indexing instead of name indexing for reliability
     age_effects <- rbind(age_effects, data.frame(
       Device = device,
-      Measure = "Two-Point Accuracy",
+      Measure = "Relative Localization  Accuracy",
       Estimate = coef_table[2, 1],  # Age coefficient estimate (2nd row, 1st column)
       SE = coef_table[2, 2],        # Standard error (2nd row, 2nd column)
       p_value = coef_table[2, 4]    # p-value (2nd row, 4th column)

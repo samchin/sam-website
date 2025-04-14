@@ -8,6 +8,9 @@ import Absolute from './Components/Absolute/Absolute';
 // import Relative from './Components/Relative/Relative';
 import Localization from './Components/Localization/Localization';
 import TwoPointDiscrimination from './Components/TwoPointDiscrimination/TwoPointDiscrimination'; //EMMIE ADDED TESTING
+import AmplitudeInput from './Components/Input/AmplitudeInput';
+
+
 
 
 function App() {
@@ -17,7 +20,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/circle" element={<Circle />} />
         <Route path="/absolute" element={<Absolute/>} />
-        {/* <Route path="/relative" element={<Relative/>} /> */}
+        {<Route path="/input" element={<AmplitudeInput/>} />}
         <Route path="/localization" element={<Localization/>} />
         <Route path="/two-point" element={<TwoPointDiscrimination/>} /> 
       </Routes>
