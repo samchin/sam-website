@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Actuator Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .control-panel {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .audio-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Actuator Test Client</h1>
+    
+    <div class="control-panel">
+        <h2>Play Audio Across Actuators</h2>
+        <div class="form-group">
+            <label for="audio-file">Audio File:</label>
+            <input type="text" id="audio-file" value="permit(vb).m4a">
+        </div>
+        
+        <div class="audio-buttons">
+            <button onclick="playSpecificAudio('permit(vb).m4a')">Play Permit VB</button>
+            <button onclick="playSpecificAudio('permit(n).m4a')">Play Permit N</button>
+            <button onclick="playAudio()">Play Custom Audio</button>
+        </div>
+        
+        <div class="form-group">
+            <label for="overlap">Overlap (%):</label>
+            <input type="range" id="overlap" min="0" max="50" value="20" oninput="updateOverlapValue(this.value)">
+            <span id="overlap-value">20%</span>
+        </div>
+        
+        <div class="form-group">
+            <label for="scaling">Amplitude Scaling (0-10):</label>
+            <input type="range" id="scaling" min="0.5" max="10" value="3" step="0.5" oninput="updateScalingValue(this.value)">
+            <span id="scaling-value">3</span>
+        </div>
+        
+        <div class="form-group">
+            <label for="smooth">Smooth Transitions:</label>
+            <input type="checkbox" id="smooth" checked>
+        </div>
+        
+        <div class="form-group">
+            <label for="loops">Loop Count:</label>
+            <input type="number" id="loops" min="1" max="10" value="1">
+        </div>
+        
+        <div id="status"></div>
+    </div>
+    
+    <div class="control-panel">
+        <h2>Manual Actuator Control</h2>
+        <div class="form-group">
+            <label>Actuator Amplitudes:</label>
+            <div style="display: flex; justify-content: space-between;">
+                <input type="range" id="amp0" min="0" max="1" value="0" step="0.1" orient="vertical" style="height: 100px;">
+                <input type="range" id="amp1" min="0" max="1" value="0" step="0.1" orient="vertical" style="height: 100px;">
+                <input type="range" id="amp2" min="0" max="1" value="0" step="0.1" orient="vertical" style="height: 100px;">
+                <input type="range" id="amp3" min="0" max="1" value="0" step="0.1" orient="vertical" style="height: 100px;">
+                <input type="range" id="amp4" min="0" max="1" value="0" step="0.1" orient="vertical" style="height: 100px;">
+                <input type="range" id="amp5" min="0" max="1" value="0" step="0.1" orient="vertical" style="height: 100px;">
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <div>1</div>
+                <div>2</div>
+                <div>3</div>
+                <div>4</div>
+                <div>5</div>
+                <div>6</div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="duration">Duration (ms):</label>
+            <input type="number" id="duration" min="100" max="5000" value="500">
+        </div>
+        
+        <button onclick="sendManualControl()">Send</button>
+    </div>
+    
+    <script>
+        let socket;
+        let socketConnected = false;
+        
+        // Connect to WebSocket server
+        function connectWebSocket() {
+            socket = new WebSocket('ws://localhost:8000');
+            
+            socket.onopen = function(e) {
+                console.log("WebSocket connected");
+                socketConnected = true;
+                document.getElementById('status').textContent = 'Connected to server';
+                document.getElementById('status').className = 'success';
+            };
+            
+            socket.onmessage = function(event) {
+                console.log('Message from server:', event.data);
+                const data = JSON.parse(event.data);
+                if (data.status === 'playing') {
+                    document.getElementById('status').textContent = `Playing ${data.file}`;
+                    document.getElementById('status').className = 'success';
+                }
+            };
+            
+            socket.onclose = function(event) {
+                if (event.wasClean) {
+                    console.log(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+                } else {
+                    console.error('Connection died');
+                }
+                socketConnected = false;
+                document.getElementById('status').textContent = 'Disconnected from server';
+                document.getElementById('status').className = 'error';
+                
+                // Try to reconnect after a delay
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            socket.onerror = function(error) {
+                console.error(`WebSocket error: ${error.message}`);
+                document.getElementById('status').textContent = 'WebSocket error';
+                document.getElementById('status').className = 'error';
+            };
+        }
+        
+        // Play specific audio file
+        function playSpecificAudio(audioFileName) {
+            if (!socketConnected) {
+                document.getElementById('status').textContent = 'Not connected to server';
+                document.getElementById('status').className = 'error';
+                return;
+            }
+            
+            const overlap = document.getElementById('overlap').value;
+            const scaling = document.getElementById('scaling').value;
+            const smooth = document.getElementById('smooth').checked;
+            const loops = document.getElementById('loops').value;
+            
+            const message = {
+                type: "play_audio",
+                audio_file: audioFileName,
+                overlap: parseFloat(overlap),
+                scaling: parseFloat(scaling),
+                smooth: smooth,
+                loops: parseInt(loops)
+            };
+            
+            socket.send(JSON.stringify(message));
+            document.getElementById('status').textContent = `Request sent to play ${audioFileName}...`;
+        }
+        
+        // Play audio from custom input field
+        function playAudio() {
+            if (!socketConnected) {
+                document.getElementById('status').textContent = 'Not connected to server';
+                document.getElementById('status').className = 'error';
+                return;
+            }
+            
+            const audioFile = document.getElementById('audio-file').value;
+            playSpecificAudio(audioFile);
+        }
+        
+        // Send manual control message
+        function sendManualControl() {
+            if (!socketConnected) {
+                document.getElementById('status').textContent = 'Not connected to server';
+                document.getElementById('status').className = 'error';
+                return;
+            }
+            
+            const amplitudes = [
+                parseFloat(document.getElementById('amp0').value),
+                parseFloat(document.getElementById('amp1').value),
+                parseFloat(document.getElementById('amp2').value),
+                parseFloat(document.getElementById('amp3').value),
+                parseFloat(document.getElementById('amp4').value),
+                parseFloat(document.getElementById('amp5').value)
+            ];
+            
+            const duration = parseInt(document.getElementById('duration').value);
+            
+            const message = {
+                device: "manual-control",
+                timestamp: Date.now(),
+                amplitudes: amplitudes,
+                duration: duration
+            };
+            
+            socket.send(JSON.stringify(message));
+            document.getElementById('status').textContent = 'Manual control sent';
+            document.getElementById('status').className = 'success';
+        }
+        
+        // Update display values
+        function updateOverlapValue(val) {
+            document.getElementById('overlap-value').textContent = val + '%';
+        }
+        
+        function updateScalingValue(val) {
+            document.getElementById('scaling-value').textContent = val;
+        }
+        
+        // Connect on page load
+        window.onload = connectWebSocket;
+    </script>
+</body>
+</html>

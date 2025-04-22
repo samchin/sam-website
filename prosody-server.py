@@ -26,9 +26,9 @@ NUMBER_ACTUATORS = int(os.getenv("REACT_APP_NUMBER_ACTUATOR", 6))  # Changed to 
 WINDOW_SIZE = int(os.getenv("REACT_APP_WINDOW_SAVING", 10000))
 
 # Parse MAPPING as a dictionary
-# mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
-mapping_str_gabrielle = ("0,1,3,7,6,2")
-mapping_str = mapping_str_gabrielle
+mapping_str = os.getenv("MAPPING", "0,1,2,3,4,5")
+# mapping_str_gabrielle = ("0,1,3,7,6,2")
+# mapping_str = mapping_str_gabrielle
 
 MAPPING = {i: int(v) for i, v in enumerate(mapping_str.split(","))}
 
@@ -339,3 +339,4 @@ if __name__ == "__main__":
     else:
         print("Running in debug mode. No audio output will be generated.")
         asyncio.run(main())
+        
