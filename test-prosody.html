@@ -132,10 +132,6 @@
     <script>
         let socket;
         let socketConnected = false;
-        // Define the mapping from actuator index to output channel
-        // This is the custom mapping you specified: "0,1,3,7,6,2"
-        // This corresponds to how the logical actuator indices map to physical output channels
-        const ACTUATOR_MAPPING = [0, 1, 3, 7, 6, 2];
         
         // Connect to WebSocket server
         function connectWebSocket() {
@@ -224,9 +220,8 @@
                 return;
             }
             
-            // Get amplitude values from sliders
-            // These values already correspond to the logical actuator indices (0-5)
-            const amplitudes = [
+            // Get UI amplitude values
+            const uiAmplitudes = [
                 parseFloat(document.getElementById('amp0').value),
                 parseFloat(document.getElementById('amp1').value),
                 parseFloat(document.getElementById('amp2').value),
@@ -235,21 +230,28 @@
                 parseFloat(document.getElementById('amp5').value)
             ];
             
-            const duration = parseInt(document.getElementById('duration').value);
+            // Map UI indices to device indices according to the required mapping:
+            // 1 UI → 5 device (index 0 → 4)
+            // 2 UI → 6 device (index 1 → 5)
+            // 3 UI → 1 device (index 2 → 0)
+            // 4 UI → 2 device (index 3 → 1)
+            // 5 UI → 3 device (index 4 → 2)
+            // 6 UI → 4 device (index 5 → 3)
+            const deviceAmplitudes = [
+                uiAmplitudes[2], // UI 3 → Device 1
+                uiAmplitudes[3], // UI 4 → Device 2
+                uiAmplitudes[4], // UI 5 → Device 3
+                uiAmplitudes[5], // UI 6 → Device 4
+                uiAmplitudes[0], // UI 1 → Device 5
+                uiAmplitudes[1]  // UI 2 → Device 6
+            ];
             
-            /* 
-             * Note: We don't need to apply mapping here. The backend will handle it:
-             * In the Python audio_callback function, the mapping is applied:
-             *    outdata[frames_processed:frames_processed + this_frames, MAPPING[i]] = sine_wave * amplitude
-             * 
-             * The amplitudes array we send corresponds to the logical indices, 
-             * not the physical output channels.
-             */
+            const duration = parseInt(document.getElementById('duration').value);
             
             const message = {
                 device: "manual-control",
                 timestamp: Date.now(),
-                amplitudes: amplitudes,
+                amplitudes: deviceAmplitudes,
                 duration: duration
             };
             
