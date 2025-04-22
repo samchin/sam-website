@@ -132,6 +132,10 @@
     <script>
         let socket;
         let socketConnected = false;
+        // Define the mapping from actuator index to output channel
+        // This is the custom mapping you specified: "0,1,3,7,6,2"
+        // This corresponds to how the logical actuator indices map to physical output channels
+        const ACTUATOR_MAPPING = [0, 1, 3, 7, 6, 2];
         
         // Connect to WebSocket server
         function connectWebSocket() {
@@ -220,6 +224,8 @@
                 return;
             }
             
+            // Get amplitude values from sliders
+            // These values already correspond to the logical actuator indices (0-5)
             const amplitudes = [
                 parseFloat(document.getElementById('amp0').value),
                 parseFloat(document.getElementById('amp1').value),
@@ -230,6 +236,15 @@
             ];
             
             const duration = parseInt(document.getElementById('duration').value);
+            
+            /* 
+             * Note: We don't need to apply mapping here. The backend will handle it:
+             * In the Python audio_callback function, the mapping is applied:
+             *    outdata[frames_processed:frames_processed + this_frames, MAPPING[i]] = sine_wave * amplitude
+             * 
+             * The amplitudes array we send corresponds to the logical indices, 
+             * not the physical output channels.
+             */
             
             const message = {
                 device: "manual-control",
