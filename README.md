@@ -3,7 +3,7 @@
 1) cmd shift p select interperter haptichearing
 2) cd sam-website
 In terminal 1
-3) conda activate haptichearing
+3) conda activate /Users/emmiefitz-gibbon/anaconda3/envs/haptichearing
 4) python server.py
 In apple terminal
 5) MAKE SURE directory is sam-website, (base) works
