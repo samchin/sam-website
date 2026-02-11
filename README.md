@@ -10,24 +10,24 @@ git clone git@github.com:samchin/haptic-hearing-website.git
 cd haptic-hearing-website
 ```
 
-## Step 2: Create conda environment
+## Step 2: Create mamba environment
 
 ```bash
-# Create conda environment from environment.yml
-# This will create an environment named 'haptichearing' in your default conda envs location
-conda env create -f environment.yml -n haptichearing
+# Create mamba environment from environment.yml
+# This will create an environment named 'haptichearing' in your default mamba envs location
+mamba env create -f environment.yml -n haptichearing
 
 # Activate the environment
-conda activate haptichearing
+mamba activate haptichearing
 ```
 
 **Note:** If the above fails due to the hardcoded prefix in environment.yml, you can create the environment manually:
 
 ```bash
 # Alternative: Create environment and install dependencies manually
-conda create -n haptichearing python=3.13.1 -y
-conda activate haptichearing
-conda install --file <(grep -v "^prefix:" environment.yml | grep -v "^name:" | grep "^  -" | sed 's/^  - //') -c conda-forge -c anaconda -y
+mamba create -n haptichearing python=3.13.1 -y
+mamba activate haptichearing
+mamba install --file <(grep -v "^prefix:" environment.yml | grep -v "^name:" | grep "^  -" | sed 's/^  - //') -c conda-forge -c anaconda -y
 pip install audioop-lts==0.2.1 sounddevice==0.5.1
 ```
 
@@ -44,7 +44,7 @@ You'll need **two terminals**:
 
 ### Terminal 1 (Backend Server):
 ```bash
-conda activate haptichearing
+mamba activate haptichearing
 python server.py
 ```
 
@@ -64,26 +64,14 @@ The app will be available at [http://localhost:3000](http://localhost:3000)
 git clone git@github.com:samchin/haptic-hearing-website.git
 cd haptic-hearing-website
 
-# Create conda environment
-conda env create -f environment.yml -n haptichearing
-conda activate haptichearing
+# Create mamba environment
+mamba env create -f environment.yml -n haptichearing
+mamba activate haptichearing
 
 # Install npm dependencies
 npm install
 
 # Then run in two terminals:
-# Terminal 1: conda activate haptichearing && python server.py
+# Terminal 1: mamba activate haptichearing && python server.py
 # Terminal 2: npm run start
 ```
-
-# How to run
-
-1) cmd shift p select interperter haptichearing
-2) cd sam-website
-In terminal 1
-3) conda activate /Users/emmiefitz-gibbon/anaconda3/envs/haptichearing
-4) python server.py
-In apple terminal
-5) MAKE SURE directory is sam-website, (base) works
-6) npm run start
-
