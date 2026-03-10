@@ -1,8 +1,9 @@
 asyncio
 websockets
 sounddevice
-numpy 
+numpy
 pandas
 flask
 flask_cors
 python-dotenv
+pyusb

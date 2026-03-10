@@ -56,6 +56,16 @@ npm run start
 
 The app will be available at [http://localhost:3000](http://localhost:3000)
 
+### CM6206 USB audio (macOS)
+
+If you use a CM6206-based USB multi-channel sound card (e.g. cheap 5.1 adapters), the server will try to activate its outputs at startup. You need:
+
+```bash
+brew install libusb   # for pyusb USB access
+```
+
+If activation fails (e.g. "Access denied"), run the server with sudo: `sudo python server.py`
+
 ---
 
 ## Quick Copy-Paste (All-in-One)
